@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, redirect, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Heart, LogOut, LayoutDashboard, Image as ImageIcon, Send, Calendar, BookHeart } from "lucide-react";
+import { Heart, LogOut, LayoutDashboard, Image as ImageIcon, Send, Calendar, BookHeart, Tv } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ const NAV = [
   { to: "/love", label: "Love", icon: Send },
   { to: "/dates", label: "Dates", icon: Calendar },
   { to: "/journal", label: "Journal", icon: BookHeart },
+  { to: "/watch", label: "Watch", icon: Tv },
 ] as const;
 
 function AuthedLayout() {
