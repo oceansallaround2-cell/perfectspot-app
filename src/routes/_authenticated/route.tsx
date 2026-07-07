@@ -27,6 +27,7 @@ const NAV = [
   { to: "/love", label: "Love", icon: Send },
   { to: "/dates", label: "Dates", icon: Calendar },
   { to: "/journal", label: "Journal", icon: BookHeart },
+  { to: "/watch", label: "Watch", icon: Tv },
 ] as const;
 
 function AuthedLayout() {
