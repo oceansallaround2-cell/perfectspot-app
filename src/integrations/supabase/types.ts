@@ -146,6 +146,100 @@ export type Database = {
         }
         Relationships: []
       }
+      watch_messages: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          room_id: string
+          sender_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          room_id: string
+          sender_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          room_id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "watch_messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "watch_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      watch_room_members: {
+        Row: {
+          id: string
+          joined_at: string
+          room_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          room_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          room_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "watch_room_members_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "watch_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      watch_rooms: {
+        Row: {
+          code: string
+          created_at: string
+          creator_id: string
+          id: string
+          is_playing: boolean
+          last_sync_at: string
+          position_seconds: number
+          video_url: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          creator_id: string
+          id?: string
+          is_playing?: boolean
+          last_sync_at?: string
+          position_seconds?: number
+          video_url?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          creator_id?: string
+          id?: string
+          is_playing?: boolean
+          last_sync_at?: string
+          position_seconds?: number
+          video_url?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
