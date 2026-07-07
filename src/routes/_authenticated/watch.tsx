@@ -412,7 +412,7 @@ function VideoPanel({ room }: { room: Room }) {
             Paste a video URL to start watching together.
           </div>
         ) : ytId ? (
-          <YouTubePlayer videoId={ytId} isPlaying={room.is_playing} position={room.position_seconds} onLocalChange={updateState} />
+          <YouTubePlayer videoId={ytId} isPlaying={room.is_playing} position={room.position_seconds} />
         ) : (
           <video
             ref={videoRef}
