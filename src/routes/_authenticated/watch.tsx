@@ -472,7 +472,6 @@ function YouTubePlayer({
   videoId: string;
   isPlaying: boolean;
   position: number;
-  onLocalChange: (patch: Partial<Pick<Room, "is_playing" | "position_seconds" | "video_url">>) => void;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const playerRef = useRef<YTPlayer | null>(null);
