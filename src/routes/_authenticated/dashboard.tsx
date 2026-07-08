@@ -42,10 +42,10 @@ function Dashboard() {
   }, [user.id]);
 
   const tiles = [
-    { to: "/memories", label: "Memories", desc: "Photos & videos, forever", icon: ImageIcon, count: counts.memories, tint: "from-[oklch(0.92_0.06_320)] to-[oklch(0.9_0.07_15)]" },
-    { to: "/love", label: "Send Love", desc: "A little note across the miles", icon: Send, count: counts.messages, tint: "from-[oklch(0.9_0.07_15)] to-[oklch(0.88_0.08_340)]" },
-    { to: "/dates", label: "Important Dates", desc: "Count every day that matters", icon: Calendar, count: counts.dates, tint: "from-[oklch(0.86_0.07_300)] to-[oklch(0.92_0.06_320)]" },
-    { to: "/journal", label: "Love Journal", desc: "Our private diary", icon: BookHeart, count: counts.entries, tint: "from-[oklch(0.94_0.05_60)] to-[oklch(0.9_0.07_320)]" },
+    { to: "/memories", label: "Memories", desc: "Photos & videos, forever", icon: ImageIcon, count: counts.memories, tint: "from-[#2A1E48] to-[#4B2E83]" },
+    { to: "/love", label: "Send Love", desc: "A little note across the miles", icon: Send, count: counts.messages, tint: "from-[#3B2469] to-[#7A4BB8]" },
+    { to: "/dates", label: "Important Dates", desc: "Count every day that matters", icon: Calendar, count: counts.dates, tint: "from-[#221A35] to-[#5E3AA5]" },
+    { to: "/journal", label: "Love Journal", desc: "Our private diary", icon: BookHeart, count: counts.entries, tint: "from-[#2E1F4D] to-[#8A5FC9]" },
   ];
 
   return (

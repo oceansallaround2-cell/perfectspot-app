@@ -39,60 +39,49 @@
 }
 
 :root {
-  --radius: 1rem;
-  /* Warm cream base */
-  --background: oklch(0.985 0.012 60);
-  --foreground: oklch(0.32 0.06 300);
+  --radius: 1.15rem;
+  /* Late-night romantic palette */
+  --background: #171321;
+  --foreground: #ECE3FA;
 
-  --card: oklch(0.995 0.008 60 / 0.72);
-  --card-foreground: oklch(0.32 0.06 300);
-  --popover: oklch(0.995 0.008 60);
-  --popover-foreground: oklch(0.32 0.06 300);
+  --card: rgb(34 26 53 / 0.72);
+  --card-foreground: #ECE3FA;
+  --popover: #221A35;
+  --popover-foreground: #ECE3FA;
 
-  /* Soft purple/lavender primary */
-  --primary: oklch(0.62 0.14 305);
-  --primary-foreground: oklch(0.99 0.008 60);
-  --primary-glow: oklch(0.78 0.11 320);
+  --primary: #5E3AA5;
+  --primary-foreground: #F5ECFF;
+  --primary-glow: #E8B4FF;
 
-  /* Pastel pink secondary */
-  --secondary: oklch(0.92 0.055 20);
-  --secondary-foreground: oklch(0.35 0.09 340);
+  --secondary: #4B2E83;
+  --secondary-foreground: #F5ECFF;
 
-  --muted: oklch(0.95 0.02 320);
-  --muted-foreground: oklch(0.52 0.05 300);
+  --muted: #221A35;
+  --muted-foreground: #BFA2DB;
 
-  --accent: oklch(0.88 0.08 340);
-  --accent-foreground: oklch(0.32 0.09 340);
+  --accent: #BFA2DB;
+  --accent-foreground: #1B1330;
 
-  --blush: oklch(0.9 0.07 15);
-  --cream: oklch(0.97 0.03 75);
-  --lavender: oklch(0.86 0.07 300);
+  --blush: #E8B4FF;
+  --cream: #D8C7F5;
+  --lavender: #BFA2DB;
 
   --destructive: oklch(0.62 0.2 22);
-  --destructive-foreground: oklch(0.99 0.008 60);
+  --destructive-foreground: #F5ECFF;
 
-  --border: oklch(0.9 0.03 310);
-  --input: oklch(0.93 0.025 310);
-  --ring: oklch(0.72 0.11 310);
+  --border: rgb(191 162 219 / 0.18);
+  --input: rgb(75 46 131 / 0.5);
+  --ring: #BFA2DB;
 
-  --gradient-romantic: linear-gradient(135deg, oklch(0.9 0.07 320), oklch(0.86 0.07 300), oklch(0.94 0.05 60));
-  --gradient-primary: linear-gradient(135deg, var(--primary), var(--primary-glow));
-  --gradient-blush: linear-gradient(135deg, oklch(0.93 0.06 350), oklch(0.9 0.07 15));
-  --shadow-soft: 0 8px 30px -12px color-mix(in oklab, var(--primary) 30%, transparent);
-  --shadow-glow: 0 20px 60px -20px color-mix(in oklab, var(--primary-glow) 55%, transparent);
-  --shadow-card: 0 4px 24px -8px oklch(0.6 0.08 320 / 0.18);
+  --gradient-romantic: linear-gradient(135deg, #4B2E83 0%, #5E3AA5 45%, #E8B4FF 100%);
+  --gradient-primary: linear-gradient(135deg, #5E3AA5 0%, #8659C7 55%, #E8B4FF 100%);
+  --gradient-blush: linear-gradient(135deg, #D8C7F5, #E8B4FF);
+  --shadow-soft: 0 10px 30px -12px rgb(94 58 165 / 0.55);
+  --shadow-glow: 0 22px 70px -18px rgb(232 180 255 / 0.45);
+  --shadow-card: 0 12px 40px -18px rgb(0 0 0 / 0.55);
 }
 
-.dark {
-  --background: oklch(0.22 0.04 305);
-  --foreground: oklch(0.96 0.02 60);
-  --card: oklch(0.27 0.05 305 / 0.7);
-  --card-foreground: oklch(0.96 0.02 60);
-  --primary: oklch(0.78 0.12 320);
-  --primary-foreground: oklch(0.22 0.04 305);
-  --border: oklch(0.4 0.06 310);
-  --input: oklch(0.35 0.05 310);
-}
+.dark { color-scheme: dark; }
 
 @layer base {
   * {
@@ -101,12 +90,24 @@
 
   html, body {
     background:
-      radial-gradient(ellipse at top left, oklch(0.94 0.06 320 / 0.6), transparent 55%),
-      radial-gradient(ellipse at bottom right, oklch(0.93 0.06 15 / 0.55), transparent 55%),
+      radial-gradient(ellipse at 15% 10%, rgb(94 58 165 / 0.45), transparent 55%),
+      radial-gradient(ellipse at 90% 85%, rgb(232 180 255 / 0.22), transparent 60%),
+      radial-gradient(ellipse at 50% 50%, rgb(75 46 131 / 0.25), transparent 70%),
       var(--color-background);
+    background-attachment: fixed;
     color: var(--color-foreground);
     font-family: var(--font-sans);
     min-height: 100vh;
+    color-scheme: dark;
+  }
+
+  input, textarea, select {
+    background: rgb(34 26 53 / 0.65);
+  }
+  input:focus-visible, textarea:focus-visible, select:focus-visible {
+    box-shadow: 0 0 0 3px rgb(232 180 255 / 0.28);
+    border-color: rgb(191 162 219 / 0.6);
+    outline: none;
   }
 
   h1, h2, h3, h4, .font-serif {
@@ -116,15 +117,15 @@
 }
 
 @utility glass-card {
-  background: color-mix(in oklab, var(--card) 88%, transparent);
-  backdrop-filter: blur(14px);
-  border: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
-  box-shadow: var(--shadow-card);
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.04), rgb(255 255 255 / 0.015)), color-mix(in oklab, var(--card) 92%, transparent);
+  backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid rgb(191 162 219 / 0.15);
+  box-shadow: var(--shadow-card), inset 0 1px 0 rgb(255 255 255 / 0.05);
   border-radius: var(--radius-2xl);
 }
 
 @utility gradient-text {
-  background: var(--gradient-primary);
+  background: linear-gradient(135deg, #D8C7F5 0%, #E8B4FF 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -134,12 +135,19 @@
   background: var(--gradient-primary);
   color: var(--primary-foreground);
   box-shadow: var(--shadow-soft);
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, filter 0.25s ease;
+}
+@utility btn-romantic {
+  &:hover { transform: translateY(-2px); box-shadow: var(--shadow-glow); filter: brightness(1.05); }
 }
 
 @utility btn-romantic-hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-glow);
+}
+
+@utility glow-ring {
+  box-shadow: 0 0 0 1px rgb(191 162 219 / 0.25), 0 0 40px -8px rgb(232 180 255 / 0.35);
 }
 
 @keyframes float-heart {
