@@ -4,6 +4,7 @@ import { Heart, LogOut, LayoutDashboard, Image as ImageIcon, Send, Calendar, Boo
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { accountByEmail } from "@/lib/accounts";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -37,10 +38,31 @@ function AuthedLayout() {
   const [profile, setProfile] = useState<Profile | null>(null);
 
   useEffect(() => {
-    supabase.from("profiles").select("display_name,partner_name,username").eq("id", user.id).maybeSingle().then(({ data }) => {
-      if (data) setProfile(data as Profile);
-    });
-  }, [user.id]);
+    let cancelled = false;
+    (async () => {
+      // Self-heal: the authoritative source of identity is the email → account map.
+      // If a stored profile drifted (e.g. old seed data mapped both accounts to the
+      // same name), overwrite it so every screen reads the correct identity.
+      const account = accountByEmail(user.email);
+      if (account) {
+        await supabase.from("profiles").upsert({
+          id: user.id,
+          username: account.username,
+          display_name: account.displayName,
+          partner_name: account.partnerName,
+        });
+      }
+      const { data } = await supabase
+        .from("profiles")
+        .select("display_name,partner_name,username")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (!cancelled && data) setProfile(data as Profile);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id, user.email]);
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -57,7 +79,7 @@ function AuthedLayout() {
             </div>
             <div className="leading-tight">
               <div className="font-serif text-lg font-semibold">Perfect Spot</div>
-              {profile && <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Hi {profile.partner_name} 💜</div>}
+              {profile && <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Hi {profile.display_name} 💜</div>}
             </div>
           </Link>
           <Button variant="ghost" size="icon" onClick={signOut} className="rounded-full text-muted-foreground hover:text-primary">

@@ -318,7 +318,7 @@ function RoomView({ room, onLeave, setRoom }: { room: Room; onLeave: () => void;
 
       <VideoPanel room={room} />
 
-      <VoicePanel />
+      <VoicePanel roomId={room.id} userId={user.id} />
 
       <ChatPanel roomId={room.id} userId={user.id} messages={messages} members={members} />
     </div>
@@ -524,45 +524,210 @@ function YouTubePlayer({
   return <div ref={containerRef} className="h-full w-full" />;
 }
 
-/* ---------------- Voice ---------------- */
+/* ---------------- Voice (real WebRTC over Supabase Realtime signaling) ---------------- */
 
-function VoicePanel() {
+const ICE_SERVERS: RTCIceServer[] = [
+  { urls: "stun:stun.l.google.com:19302" },
+  { urls: "stun:stun1.l.google.com:19302" },
+];
+
+type SignalPayload =
+  | { kind: "hello"; from: string }
+  | { kind: "offer"; from: string; to: string; sdp: RTCSessionDescriptionInit }
+  | { kind: "answer"; from: string; to: string; sdp: RTCSessionDescriptionInit }
+  | { kind: "ice"; from: string; to: string; candidate: RTCIceCandidateInit }
+  | { kind: "bye"; from: string };
+
+function VoicePanel({ roomId, userId }: { roomId: string; userId: string }) {
   const [on, setOn] = useState(false);
-  const streamRef = useRef<MediaStream | null>(null);
+  const [muted, setMuted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [peerCount, setPeerCount] = useState(0);
 
-  const toggle = async () => {
-    if (on) {
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-      setOn(false);
+  const streamRef = useRef<MediaStream | null>(null);
+  const peersRef = useRef<Map<string, RTCPeerConnection>>(new Map());
+  const audiosRef = useRef<Map<string, HTMLAudioElement>>(new Map());
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const audioContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const updateCount = useCallback(() => setPeerCount(peersRef.current.size), []);
+
+  const cleanupPeer = useCallback((peerId: string) => {
+    const pc = peersRef.current.get(peerId);
+    if (pc) {
+      try { pc.close(); } catch { /* noop */ }
+      peersRef.current.delete(peerId);
+    }
+    const el = audiosRef.current.get(peerId);
+    if (el) {
+      el.srcObject = null;
+      el.remove();
+      audiosRef.current.delete(peerId);
+    }
+    updateCount();
+  }, [updateCount]);
+
+  const send = useCallback((payload: SignalPayload) => {
+    channelRef.current?.send({ type: "broadcast", event: "signal", payload });
+  }, []);
+
+  const createPeer = useCallback((peerId: string): RTCPeerConnection => {
+    const existing = peersRef.current.get(peerId);
+    if (existing) return existing;
+    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    peersRef.current.set(peerId, pc);
+
+    streamRef.current?.getTracks().forEach((t) => pc.addTrack(t, streamRef.current!));
+
+    pc.onicecandidate = (e) => {
+      if (e.candidate) send({ kind: "ice", from: userId, to: peerId, candidate: e.candidate.toJSON() });
+    };
+    pc.ontrack = (e) => {
+      let audio = audiosRef.current.get(peerId);
+      if (!audio) {
+        audio = document.createElement("audio");
+        audio.autoplay = true;
+        audio.setAttribute("playsinline", "true");
+        audioContainerRef.current?.appendChild(audio);
+        audiosRef.current.set(peerId, audio);
+      }
+      audio.srcObject = e.streams[0] ?? new MediaStream([e.track]);
+      audio.play().catch(() => { /* browsers may block; user gesture already given */ });
+    };
+    pc.onconnectionstatechange = () => {
+      if (["failed", "closed", "disconnected"].includes(pc.connectionState)) {
+        cleanupPeer(peerId);
+      }
+    };
+    updateCount();
+    return pc;
+  }, [send, userId, cleanupPeer, updateCount]);
+
+  const startVoice = useCallback(async () => {
+    setError(null);
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      });
+    } catch (err) {
+      const name = err instanceof Error ? err.name : "";
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(`${name ? name + ": " : ""}${msg || "Microphone unavailable"}`);
       return;
     }
-    try {
-      const s = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = s;
-      setOn(true);
-    } catch {
-      toast.error("Microphone access denied");
-    }
-  };
+    streamRef.current = stream;
+    setMuted(false);
+    setOn(true);
 
-  useEffect(
-    () => () => {
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-    },
-    [],
-  );
+    // Signaling channel — one per room, scoped to voice.
+    const channel = supabase.channel(`voice-${roomId}`, {
+      config: { broadcast: { self: false }, presence: { key: userId } },
+    });
+    channelRef.current = channel;
+
+    channel.on("broadcast", { event: "signal" }, async ({ payload }) => {
+      const p = payload as SignalPayload;
+      if ("to" in p && p.to !== userId) return;
+      if (p.from === userId) return;
+
+      if (p.kind === "hello") {
+        // Deterministic tiebreaker: the peer with the larger id initiates the offer
+        // to the peer with the smaller id — prevents glare when both sides connect.
+        if (userId > p.from) {
+          const pc = createPeer(p.from);
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          send({ kind: "offer", from: userId, to: p.from, sdp: offer });
+        } else {
+          // Ensure a peer slot exists so incoming offer finds it.
+          createPeer(p.from);
+        }
+      } else if (p.kind === "offer") {
+        const pc = createPeer(p.from);
+        await pc.setRemoteDescription(new RTCSessionDescription(p.sdp));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        send({ kind: "answer", from: userId, to: p.from, sdp: answer });
+      } else if (p.kind === "answer") {
+        const pc = peersRef.current.get(p.from);
+        if (pc) await pc.setRemoteDescription(new RTCSessionDescription(p.sdp));
+      } else if (p.kind === "ice") {
+        const pc = peersRef.current.get(p.from);
+        if (pc) {
+          try { await pc.addIceCandidate(new RTCIceCandidate(p.candidate)); } catch { /* noop */ }
+        }
+      } else if (p.kind === "bye") {
+        cleanupPeer(p.from);
+      }
+    });
+
+    await new Promise<void>((resolve) => {
+      channel.subscribe((status) => {
+        if (status === "SUBSCRIBED") resolve();
+      });
+    });
+
+    // Announce presence so existing peers initiate offers to us.
+    send({ kind: "hello", from: userId });
+  }, [roomId, userId, createPeer, send, cleanupPeer]);
+
+  const stopVoice = useCallback(() => {
+    if (channelRef.current) {
+      try { channelRef.current.send({ type: "broadcast", event: "signal", payload: { kind: "bye", from: userId } }); } catch { /* noop */ }
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+    peersRef.current.forEach((pc) => { try { pc.close(); } catch { /* noop */ } });
+    peersRef.current.clear();
+    audiosRef.current.forEach((el) => { el.srcObject = null; el.remove(); });
+    audiosRef.current.clear();
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    setOn(false);
+    setMuted(false);
+    setPeerCount(0);
+  }, [userId]);
+
+  const toggleMute = useCallback(() => {
+    const s = streamRef.current;
+    if (!s) return;
+    const next = !muted;
+    s.getAudioTracks().forEach((t) => (t.enabled = !next));
+    setMuted(next);
+  }, [muted]);
+
+  useEffect(() => () => { stopVoice(); }, [stopVoice]);
 
   return (
-    <div className="flex items-center justify-between rounded-3xl border border-border/50 bg-card p-4" style={{ boxShadow: "var(--shadow-card)" }}>
-      <div>
-        <div className="text-sm font-medium">Voice chat</div>
-        <div className="text-xs text-muted-foreground">Microphone {on ? "on" : "off"}</div>
+    <div className="rounded-3xl border border-border/50 bg-card p-4" style={{ boxShadow: "var(--shadow-card)" }}>
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-sm font-medium">Voice chat</div>
+          <div className="text-xs text-muted-foreground">
+            {on ? (muted ? "Muted" : "Live") : "Off"}
+            {on && peerCount > 0 && ` · ${peerCount} connected`}
+          </div>
+        </div>
+        <div className="flex gap-2">
+          {on && (
+            <Button onClick={toggleMute} variant={muted ? "outline" : "default"} size="sm" className="rounded-full">
+              {muted ? <MicOff className="mr-1 h-4 w-4" /> : <Mic className="mr-1 h-4 w-4" />}
+              {muted ? "Unmute" : "Mute"}
+            </Button>
+          )}
+          <Button onClick={on ? stopVoice : startVoice} variant={on ? "ghost" : "outline"} size="sm" className="rounded-full">
+            {on ? "Leave voice" : "Join voice"}
+          </Button>
+        </div>
       </div>
-      <Button onClick={toggle} variant={on ? "default" : "outline"} size="sm" className="rounded-full">
-        {on ? <Mic className="mr-1 h-4 w-4" /> : <MicOff className="mr-1 h-4 w-4" />}
-        {on ? "Mute" : "Unmute"}
-      </Button>
+      {error && (
+        <div className="mt-3 flex items-start gap-2 rounded-2xl border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
+          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+      <div ref={audioContainerRef} className="hidden" aria-hidden />
     </div>
   );
 }
