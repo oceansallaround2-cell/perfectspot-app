@@ -79,7 +79,7 @@ function AuthedLayout() {
             </div>
             <div className="leading-tight">
               <div className="font-serif text-lg font-semibold">Perfect Spot</div>
-              {profile && <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Hi {profile.partner_name} 💜</div>}
+              {profile && <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Hi {profile.display_name} 💜</div>}
             </div>
           </Link>
           <Button variant="ghost" size="icon" onClick={signOut} className="rounded-full text-muted-foreground hover:text-primary">
