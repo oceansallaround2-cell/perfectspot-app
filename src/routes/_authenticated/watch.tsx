@@ -318,7 +318,7 @@ function RoomView({ room, onLeave, setRoom }: { room: Room; onLeave: () => void;
 
       <VideoPanel room={room} />
 
-      <VoicePanel />
+      <VoicePanel roomId={room.id} userId={user.id} />
 
       <ChatPanel roomId={room.id} userId={user.id} messages={messages} members={members} />
     </div>
