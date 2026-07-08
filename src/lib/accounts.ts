@@ -6,8 +6,8 @@ export interface AccountInfo {
   key: AccountKey;
   email: string; // internal supabase email
   password: string;
-  displayName: string; // who they are IRL
-  partnerName: string; // who they are greeted with ("Hello X")
+  displayName: string; // the real person behind this login
+  partnerName: string; // the real person behind the OTHER login
 }
 
 export const ACCOUNTS: Record<AccountKey, AccountInfo> = {
@@ -16,16 +16,16 @@ export const ACCOUNTS: Record<AccountKey, AccountInfo> = {
     key: "mango",
     email: "mango@perfectspot.love",
     password: "290624",
-    displayName: "Priyanshu",
-    partnerName: "Sidrah",
+    displayName: "Sidrah",
+    partnerName: "Priyanshu",
   },
   anshalien: {
     username: "Anshalien",
     key: "anshalien",
     email: "anshalien@perfectspot.love",
     password: "290624",
-    displayName: "Sidrah",
-    partnerName: "Priyanshu",
+    displayName: "Priyanshu",
+    partnerName: "Sidrah",
   },
 };
 
@@ -36,4 +36,10 @@ export function findAccount(rawUsername: string, rawPassword: string): AccountIn
     (a) => a.key === u && a.password === p,
   );
   return match ?? null;
+}
+
+export function accountByEmail(email: string | null | undefined): AccountInfo | null {
+  if (!email) return null;
+  const e = email.trim().toLowerCase();
+  return Object.values(ACCOUNTS).find((a) => a.email.toLowerCase() === e) ?? null;
 }
