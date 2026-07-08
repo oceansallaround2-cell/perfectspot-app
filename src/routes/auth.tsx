@@ -73,7 +73,7 @@ function AuthPage() {
       await ensureAccountAndSignIn(account);
       const { data } = await supabase.auth.getUser();
       if (data.user) await ensureProfile(data.user.id, account);
-      toast.success(`Welcome ${account.partnerName} 💜`);
+      toast.success(`Welcome ${account.displayName} 💜`);
       navigate({ to: "/dashboard", replace: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Login failed";
