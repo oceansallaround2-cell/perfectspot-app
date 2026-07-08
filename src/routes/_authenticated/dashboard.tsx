@@ -53,11 +53,11 @@ function Dashboard() {
       <section className="animate-fade-up glass-card p-6">
         <p className="text-xs uppercase tracking-widest text-muted-foreground">Welcome back</p>
         <h1 className="mt-1 font-serif text-4xl">
-          Hello <span className="gradient-text">{profile?.partner_name ?? "love"}</span>{" "}
+          Hello <span className="gradient-text">{profile?.display_name ?? "love"}</span>{" "}
           <Heart className="ml-1 inline h-6 w-6 text-primary" fill="currentColor" />
         </h1>
         <p className="mt-2 max-w-md text-sm text-muted-foreground">
-          {profile ? `${profile.display_name} misses you. Everything you make here is only for the two of you.` : "Everything you make here is only for the two of you."}
+          {profile ? `${profile.partner_name} misses you. Everything you make here is only for the two of you.` : "Everything you make here is only for the two of you."}
         </p>
         {daysTogether !== null && (
           <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/50 px-4 py-1.5 text-xs">
