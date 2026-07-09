@@ -132,10 +132,32 @@ function WatchTogether() {
 
   const handleLeave = useCallback(async () => {
     if (!room) return;
-    await supabase.from("watch_room_members").delete().eq("room_id", room.id).eq("user_id", user.id);
-    setRoom(null);
-    setJoinCode("");
+    try {
+      const { error: delErr } = await supabase
+        .from("watch_room_members")
+        .delete()
+        .eq("room_id", room.id)
+        .eq("user_id", user.id);
+      if (delErr) throw delErr;
+
+      // If the room is now empty, delete it so no orphaned rooms remain.
+      const { data: remaining, error: countErr } = await supabase
+        .from("watch_room_members")
+        .select("id")
+        .eq("room_id", room.id);
+      if (countErr) throw countErr;
+      if (!remaining || remaining.length === 0) {
+        await supabase.from("watch_rooms").delete().eq("id", room.id);
+      }
+
+      setRoom(null);
+      setJoinCode("");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to leave the room.";
+      toast.error(msg);
+    }
   }, [room, user.id]);
+
 
   if (room) return <RoomView room={room} onLeave={handleLeave} setRoom={setRoom} />;
 
