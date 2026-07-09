@@ -337,9 +337,28 @@ function RoomView({ room, onLeave, setRoom }: { room: Room; onLeave: () => void;
             <Button variant="outline" size="sm" onClick={shareCode} className="rounded-full">
               Share
             </Button>
-            <Button variant="ghost" size="sm" onClick={onLeave} className="rounded-full text-destructive hover:text-destructive">
-              <LogOut className="h-4 w-4" />
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="rounded-full text-destructive hover:text-destructive"
+                  aria-label="Leave room"
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Leave Room?</AlertDialogTitle>
+                  <AlertDialogDescription>You will disconnect from the room.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={onLeave}>Leave</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
         <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
