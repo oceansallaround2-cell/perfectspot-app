@@ -41,7 +41,7 @@ async function signUrl(path: string): Promise<string | null> {
   return data.signedUrl;
 }
 
-function MemoriesPage() {
+function MemoriesPage({ onLock }: { onLock: () => void }) {
   const { user } = Route.useRouteContext();
   const [memories, setMemories] = useState<Memory[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
