@@ -5,7 +5,19 @@ import { Tv, Copy, Check, LogOut, Send, Mic, MicOff, Users, Play, Pause, Link2, 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+
 
 export const Route = createFileRoute("/_authenticated/watch")({
   component: WatchTogether,
