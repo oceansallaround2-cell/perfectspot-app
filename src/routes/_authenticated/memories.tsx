@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Upload, X, Search, Filter, Trash2, Play, Loader2, Image as ImageIcon } from "lucide-react";
+import { Upload, X, Search, Filter, Trash2, Play, Loader2, Image as ImageIcon, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -8,10 +8,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { MemoriesLock, useMemoriesUnlocked, lockMemories } from "@/components/MemoriesLock";
 
 export const Route = createFileRoute("/_authenticated/memories")({
-  component: MemoriesPage,
+  component: MemoriesGate,
 });
+
+function MemoriesGate() {
+  const [unlocked, setUnlocked] = useMemoriesUnlocked();
+  if (!unlocked) return <MemoriesLock onUnlock={() => setUnlocked(true)} />;
+  return <MemoriesPage onLock={() => { lockMemories(); setUnlocked(false); }} />;
+}
+
 
 interface Memory {
   id: string;
