@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Upload, X, Search, Filter, Trash2, Play, Loader2, Image as ImageIcon } from "lucide-react";
+import { Upload, X, Search, Filter, Trash2, Play, Loader2, Image as ImageIcon, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -8,10 +8,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { MemoriesLock, useMemoriesUnlocked, lockMemories } from "@/components/MemoriesLock";
 
 export const Route = createFileRoute("/_authenticated/memories")({
-  component: MemoriesPage,
+  component: MemoriesGate,
 });
+
+function MemoriesGate() {
+  const [unlocked, setUnlocked] = useMemoriesUnlocked();
+  if (!unlocked) return <MemoriesLock onUnlock={() => setUnlocked(true)} />;
+  return <MemoriesPage onLock={() => { lockMemories(); setUnlocked(false); }} />;
+}
+
 
 interface Memory {
   id: string;
@@ -33,7 +41,7 @@ async function signUrl(path: string): Promise<string | null> {
   return data.signedUrl;
 }
 
-function MemoriesPage() {
+function MemoriesPage({ onLock }: { onLock: () => void }) {
   const { user } = Route.useRouteContext();
   const [memories, setMemories] = useState<Memory[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
@@ -151,9 +159,18 @@ function MemoriesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-serif text-3xl">Memories</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Every photo and video, kept safe forever.</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="font-serif text-3xl">Memories</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Every photo and video, kept safe forever.</p>
+        </div>
+        <button
+          onClick={onLock}
+          className="flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-2 text-xs font-medium text-muted-foreground transition hover:text-foreground"
+          style={{ background: "color-mix(in oklab, var(--card) 85%, transparent)" }}
+        >
+          <Lock className="h-3.5 w-3.5" /> Lock
+        </button>
       </div>
 
       <div className="glass-card p-4">
