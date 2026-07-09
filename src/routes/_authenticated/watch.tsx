@@ -5,7 +5,19 @@ import { Tv, Copy, Check, LogOut, Send, Mic, MicOff, Users, Play, Pause, Link2, 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+
 
 export const Route = createFileRoute("/_authenticated/watch")({
   component: WatchTogether,
@@ -120,10 +132,32 @@ function WatchTogether() {
 
   const handleLeave = useCallback(async () => {
     if (!room) return;
-    await supabase.from("watch_room_members").delete().eq("room_id", room.id).eq("user_id", user.id);
-    setRoom(null);
-    setJoinCode("");
+    try {
+      const { error: delErr } = await supabase
+        .from("watch_room_members")
+        .delete()
+        .eq("room_id", room.id)
+        .eq("user_id", user.id);
+      if (delErr) throw delErr;
+
+      // If the room is now empty, delete it so no orphaned rooms remain.
+      const { data: remaining, error: countErr } = await supabase
+        .from("watch_room_members")
+        .select("id")
+        .eq("room_id", room.id);
+      if (countErr) throw countErr;
+      if (!remaining || remaining.length === 0) {
+        await supabase.from("watch_rooms").delete().eq("id", room.id);
+      }
+
+      setRoom(null);
+      setJoinCode("");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to leave the room.";
+      toast.error(msg);
+    }
   }, [room, user.id]);
+
 
   if (room) return <RoomView room={room} onLeave={handleLeave} setRoom={setRoom} />;
 
@@ -303,9 +337,28 @@ function RoomView({ room, onLeave, setRoom }: { room: Room; onLeave: () => void;
             <Button variant="outline" size="sm" onClick={shareCode} className="rounded-full">
               Share
             </Button>
-            <Button variant="ghost" size="sm" onClick={onLeave} className="rounded-full text-destructive hover:text-destructive">
-              <LogOut className="h-4 w-4" />
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="rounded-full text-destructive hover:text-destructive"
+                  aria-label="Leave room"
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Leave Room?</AlertDialogTitle>
+                  <AlertDialogDescription>You will disconnect from the room.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={onLeave}>Leave</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
         <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
