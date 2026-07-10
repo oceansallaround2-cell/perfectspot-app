@@ -169,19 +169,37 @@ function LovePage() {
               return (
                 <li key={m.id} className={`animate-fade-up flex ${mine ? "justify-end" : "justify-start"}`}>
                   <div
-                    className="group relative max-w-[80%] rounded-3xl px-4 py-2.5 shadow-sm"
+                    className="group relative max-w-[80%] rounded-3xl px-4 py-2.5 pr-8 shadow-sm"
                     style={mine
                       ? { background: "var(--gradient-primary)", color: "var(--primary-foreground)", borderBottomRightRadius: "0.5rem" }
                       : { background: "var(--card)", border: "1px solid var(--border)", borderBottomLeftRadius: "0.5rem" }}
+                    onTouchStart={mine ? () => startLongPress(m.id) : undefined}
+                    onTouchEnd={mine ? cancelLongPress : undefined}
+                    onTouchMove={mine ? cancelLongPress : undefined}
                   >
                     <div className="text-sm">{m.message}</div>
                     <div className={`mt-1 text-[9px] uppercase tracking-widest ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
                       {profiles[m.sender_id] ?? "Someone"} · {new Date(m.created_at).toLocaleString()}
                     </div>
                     {mine && (
-                      <button onClick={() => remove(m.id)} className="absolute -right-2 -top-2 hidden rounded-full bg-destructive p-1 text-destructive-foreground group-hover:block">
-                        <Trash2 className="h-3 w-3" />
-                      </button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            className="absolute right-1 top-1 rounded-full p-1 text-primary-foreground/80 opacity-70 transition hover:opacity-100 hover:bg-black/10"
+                            aria-label="Message options"
+                          >
+                            <MoreVertical className="h-3.5 w-3.5" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-36">
+                          <DropdownMenuItem
+                            onClick={() => setPendingDelete(m.id)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     )}
                   </div>
                 </li>
@@ -190,6 +208,19 @@ function LovePage() {
           </ul>
         )}
       </section>
+
+      <AlertDialog open={pendingDelete !== null} onOpenChange={(o) => !o && setPendingDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this message?</AlertDialogTitle>
+            <AlertDialogDescription>This can't be undone. It will disappear for both of you.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="pointer-events-none fixed inset-0 z-30 overflow-hidden">
         {hearts.map((h) => (
