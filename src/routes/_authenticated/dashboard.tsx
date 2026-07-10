@@ -57,7 +57,11 @@ function Dashboard() {
           <Heart className="ml-1 inline h-6 w-6 text-primary" fill="currentColor" />
         </h1>
         <p className="mt-2 max-w-md text-sm text-muted-foreground">
-          {profile ? `${profile.partner_name} misses you. Everything you make here is only for the two of you.` : "Everything you make here is only for the two of you."}
+          {profile?.display_name === "Sidrah"
+            ? "Every memory I make here is another way of saying I love you, Priyanshu♥️"
+            : profile?.display_name === "Priyanshu"
+              ? "Someone loves you more than words can say ♥️"
+              : "Everything you make here is only for the two of you."}
         </p>
         {daysTogether !== null && (
           <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/50 px-4 py-1.5 text-xs">
@@ -92,6 +96,10 @@ function Dashboard() {
           );
         })}
       </section>
+
+      <p className="pt-4 text-center text-[10px] tracking-wide text-muted-foreground/50">
+        Created with love by Mango, for Anshalien. 🤍
+      </p>
     </div>
   );
 }
