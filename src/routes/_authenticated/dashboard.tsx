@@ -96,6 +96,10 @@ function Dashboard() {
           );
         })}
       </section>
+
+      <p className="pt-4 text-center text-[10px] tracking-wide text-muted-foreground/50">
+        Created with love by Mango, for Anshalien. 🤍
+      </p>
     </div>
   );
 }
