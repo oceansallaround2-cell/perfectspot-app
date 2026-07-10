@@ -99,8 +99,24 @@ function LovePage() {
     else { setCustom(""); toast.success("Sent with love 💜"); }
   }
 
-  async function remove(id: string) {
-    await supabase.from("love_messages").delete().eq("id", id);
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    const id = pendingDelete;
+    setPendingDelete(null);
+    const { error } = await supabase.from("love_messages").delete().eq("id", id).eq("sender_id", user.id);
+    if (error) toast.error("Couldn't delete", { description: error.message });
+    else setMessages((m) => m.filter((x) => x.id !== id));
+  }
+
+  function startLongPress(id: string) {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    longPressTimer.current = setTimeout(() => setPendingDelete(id), 500);
+  }
+  function cancelLongPress() {
+    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
   }
 
   return (
