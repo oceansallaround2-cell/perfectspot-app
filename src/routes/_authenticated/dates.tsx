@@ -30,17 +30,27 @@ type SortMode = "upcoming" | "recent" | "anniversary";
 function computeCountdown(dateStr: string, anniversary: boolean) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const target = new Date(dateStr + "T00:00:00");
-  if (anniversary) {
-    const next = new Date(target);
-    next.setFullYear(today.getFullYear());
-    if (next < today) next.setFullYear(today.getFullYear() + 1);
-    const diff = Math.round((next.getTime() - today.getTime()) / 86400000);
-    const years = today.getFullYear() - target.getFullYear() - (next.getFullYear() > today.getFullYear() ? 1 : 0);
-    return { daysUntil: diff, yearsSince: Math.max(0, years) };
-  }
-  const diff = Math.round((target.getTime() - today.getTime()) / 86400000);
-  return { daysUntil: diff, yearsSince: null as number | null };
+
+  // Parse YYYY-MM-DD as a local date to avoid timezone shifts.
+  const [y, m, d] = dateStr.split("-").map((n) => parseInt(n, 10));
+  const target = new Date(y, (m || 1) - 1, d || 1);
+  target.setHours(0, 0, 0, 0);
+
+  // Next occurrence this year (or next year if it already passed).
+  const thisYear = new Date(today.getFullYear(), target.getMonth(), target.getDate());
+  thisYear.setHours(0, 0, 0, 0);
+  const passedThisYear = thisYear.getTime() < today.getTime();
+  const next = new Date(thisYear);
+  if (passedThisYear) next.setFullYear(today.getFullYear() + 1);
+
+  const daysUntil = Math.round((next.getTime() - today.getTime()) / 86400000);
+  const daysSinceLast = Math.round((today.getTime() - thisYear.getTime()) / 86400000);
+
+  // Years since the original event, counting only completed anniversaries.
+  const rawYears = today.getFullYear() - target.getFullYear();
+  const yearsSince = Math.max(0, rawYears - (passedThisYear ? 0 : 1));
+
+  return { daysUntil, daysSinceLast, yearsSince: anniversary ? yearsSince : (null as number | null), passedThisYear };
 }
 
 function DatesPage() {
@@ -180,7 +190,11 @@ function DatesPage() {
                   <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px]">
                     <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium ${soon ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground"}`}>
                       {soon && <Sparkles className="h-3 w-3" />}
-                      {d.meta.daysUntil === 0 ? "Today!" : d.meta.daysUntil > 0 ? `in ${d.meta.daysUntil} days` : `${Math.abs(d.meta.daysUntil)} days ago`}
+                      {d.meta.daysUntil === 0
+                        ? "Today!"
+                        : d.meta.passedThisYear && d.meta.daysSinceLast > 0 && d.meta.daysSinceLast <= 30
+                          ? `Passed ${d.meta.daysSinceLast} day${d.meta.daysSinceLast === 1 ? "" : "s"} ago`
+                          : `${d.meta.daysUntil} day${d.meta.daysUntil === 1 ? "" : "s"} left`}
                     </span>
                     {d.is_anniversary && d.meta.yearsSince !== null && (
                       <span className="rounded-full bg-secondary px-2 py-0.5 text-secondary-foreground">
