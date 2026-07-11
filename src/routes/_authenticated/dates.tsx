@@ -190,7 +190,11 @@ function DatesPage() {
                   <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px]">
                     <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium ${soon ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground"}`}>
                       {soon && <Sparkles className="h-3 w-3" />}
-                      {d.meta.daysUntil === 0 ? "Today!" : d.meta.daysUntil > 0 ? `in ${d.meta.daysUntil} days` : `${Math.abs(d.meta.daysUntil)} days ago`}
+                      {d.meta.daysUntil === 0
+                        ? "Today!"
+                        : d.meta.passedThisYear && d.meta.daysSinceLast > 0 && d.meta.daysSinceLast <= 30
+                          ? `Passed ${d.meta.daysSinceLast} day${d.meta.daysSinceLast === 1 ? "" : "s"} ago`
+                          : `${d.meta.daysUntil} day${d.meta.daysUntil === 1 ? "" : "s"} left`}
                     </span>
                     {d.is_anniversary && d.meta.yearsSince !== null && (
                       <span className="rounded-full bg-secondary px-2 py-0.5 text-secondary-foreground">
