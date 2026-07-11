@@ -30,17 +30,27 @@ type SortMode = "upcoming" | "recent" | "anniversary";
 function computeCountdown(dateStr: string, anniversary: boolean) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const target = new Date(dateStr + "T00:00:00");
-  if (anniversary) {
-    const next = new Date(target);
-    next.setFullYear(today.getFullYear());
-    if (next < today) next.setFullYear(today.getFullYear() + 1);
-    const diff = Math.round((next.getTime() - today.getTime()) / 86400000);
-    const years = today.getFullYear() - target.getFullYear() - (next.getFullYear() > today.getFullYear() ? 1 : 0);
-    return { daysUntil: diff, yearsSince: Math.max(0, years) };
-  }
-  const diff = Math.round((target.getTime() - today.getTime()) / 86400000);
-  return { daysUntil: diff, yearsSince: null as number | null };
+
+  // Parse YYYY-MM-DD as a local date to avoid timezone shifts.
+  const [y, m, d] = dateStr.split("-").map((n) => parseInt(n, 10));
+  const target = new Date(y, (m || 1) - 1, d || 1);
+  target.setHours(0, 0, 0, 0);
+
+  // Next occurrence this year (or next year if it already passed).
+  const thisYear = new Date(today.getFullYear(), target.getMonth(), target.getDate());
+  thisYear.setHours(0, 0, 0, 0);
+  const passedThisYear = thisYear.getTime() < today.getTime();
+  const next = new Date(thisYear);
+  if (passedThisYear) next.setFullYear(today.getFullYear() + 1);
+
+  const daysUntil = Math.round((next.getTime() - today.getTime()) / 86400000);
+  const daysSinceLast = Math.round((today.getTime() - thisYear.getTime()) / 86400000);
+
+  // Years since the original event, counting only completed anniversaries.
+  const rawYears = today.getFullYear() - target.getFullYear();
+  const yearsSince = Math.max(0, rawYears - (passedThisYear ? 0 : 1));
+
+  return { daysUntil, daysSinceLast, yearsSince: anniversary ? yearsSince : (null as number | null), passedThisYear };
 }
 
 function DatesPage() {
