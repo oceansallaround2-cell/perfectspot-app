@@ -1,12 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import {
-  Heart,
-  Sparkles,
-  Eye,
-  EyeOff,
-  Stars,
-} from "lucide-react";
+import { Heart, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -60,7 +54,6 @@ function AuthPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -99,16 +92,13 @@ function AuthPage() {
     <div className="flex min-h-screen items-center justify-center px-4 py-10">
       <div className="animate-fade-up w-full max-w-md">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full animate-glow animate-floating" style={{ background: "var(--gradient-primary)", boxShadow: "var(--shadow-glow)" }}>
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full" style={{ background: "var(--gradient-primary)", boxShadow: "var(--shadow-glow)" }}>
             <Heart className="h-8 w-8 text-primary-foreground animate-soft-pulse" fill="currentColor" />
           </div>
-          <h1 className="gradient-text text-6xl font-bold tracking-wide">
-  Perfect Spot
-</h1>
+          <h1 className="gradient-text text-5xl font-semibold">Perfect Spot</h1>
+          <p className="mt-2 text-sm text-muted-foreground">Our little universe, just for two.</p>
+        </div>
 
-<p className="mt-2 text-sm text-muted-foreground">
-  Our little universe, just for two.
-</p>
         <div className="glass-card p-8">
           <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-2">
@@ -125,48 +115,25 @@ function AuthPage() {
               />
             </div>
             <div className="space-y-2">
-  <Label
-    htmlFor="password"
-    className="text-xs uppercase tracking-widest text-muted-foreground"
-  >
-    Password
-  </Label>
-
-  <div className="relative">
-    <Input
-      id="password"
-      type={showPassword ? "text" : "password"}
-      autoComplete="current-password"
-      value={password}
-      onChange={(e) => setPassword(e.target.value)}
-      placeholder="••••••"
-      className="premium-input rounded-xl bg-background/70 py-6 pr-12 text-base"
-      required
-    />
-
-    <button
-      type="button"
-      onClick={() => setShowPassword(!showPassword)}
-      className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white"
-    >
-      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-    </button>
-  </div>
-</div>
+              <Label htmlFor="password" className="text-xs uppercase tracking-widest text-muted-foreground">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••"
+                className="rounded-xl bg-background/70 py-6 text-base"
+                required
+              />
+            </div>
             <Button
-  type="submit"
-  disabled={loading}
-  className="btn-premium animate-glow w-full rounded-full py-6 text-base font-semibold"
->
-  {loading ? (
-    "Opening the door…"
-  ) : (
-    <>
-      <Sparkles className="mr-2 h-4 w-4" />
-      Enter
-    </>
-  )}
-</Button>
+              type="submit"
+              disabled={loading}
+              className="btn-romantic w-full rounded-full py-6 text-base font-semibold hover:-translate-y-0.5"
+            >
+              {loading ? "Opening the door…" : (<><Sparkles className="mr-2 h-4 w-4" /> Enter</>)}
+            </Button>
           </form>
 
           <div className="mt-6 grid grid-cols-2 gap-2">
@@ -179,4 +146,5 @@ function AuthPage() {
       </div>
     </div>
   );
-}
+  }
+  
