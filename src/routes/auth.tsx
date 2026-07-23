@@ -154,12 +154,19 @@ function AuthPage() {
   </div>
 </div>
             <Button
-              type="submit"
-              disabled={loading}
-              className="btn-premium animate-glow w-full rounded-full py-6 text-base font-semibold"
-            >
-              {loading ? "Opening the door…" : (<><Sparkles className="mr-2 h-4 w-4" /> Enter</>)}
-            </Button>
+  type="submit"
+  disabled={loading}
+  className="btn-premium animate-glow w-full rounded-full py-6 text-base font-semibold"
+>
+  {loading ? (
+    "Opening the door…"
+  ) : (
+    <>
+      <Sparkles className="mr-2 h-4 w-4" />
+      Enter
+    </>
+  )}
+</Button>
           </form>
 
           <div className="mt-6 grid grid-cols-2 gap-2">
