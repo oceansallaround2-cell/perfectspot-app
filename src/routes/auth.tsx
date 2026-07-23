@@ -103,9 +103,12 @@ function AuthPage() {
             <Heart className="h-8 w-8 text-primary-foreground animate-soft-pulse" fill="currentColor" />
           </div>
           <h1 className="gradient-text text-6xl font-bold tracking-wide">
-          <p className="mt-2 text-sm text-muted-foreground">Our little universe, just for two.</p>
-        </div>
+  Perfect Spot
+</h1>
 
+<p className="mt-2 text-sm text-muted-foreground">
+  Our little universe, just for two.
+</p>
         <div className="glass-card p-8">
           <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-2">
