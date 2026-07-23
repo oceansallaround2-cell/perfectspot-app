@@ -1,3 +1,132 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-glow: var(--primary-glow);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-blush: var(--blush);
+  --color-cream: var(--cream);
+  --color-lavender: var(--lavender);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --font-serif: "Fraunces", "DM Serif Display", Georgia, serif;
+  --font-sans: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  --radius: 1.15rem;
+  /* Late-night romantic palette */
+  --background: #171321;
+  --foreground: #ECE3FA;
+
+  --card: rgb(34 26 53 / 0.72);
+  --card-foreground: #ECE3FA;
+  --popover: #221A35;
+  --popover-foreground: #ECE3FA;
+
+  --primary: #5E3AA5;
+  --primary-foreground: #F5ECFF;
+  --primary-glow: #E8B4FF;
+
+  --secondary: #4B2E83;
+  --secondary-foreground: #F5ECFF;
+
+  --muted: #221A35;
+  --muted-foreground: #BFA2DB;
+
+  --accent: #BFA2DB;
+  --accent-foreground: #1B1330;
+
+  --blush: #E8B4FF;
+  --cream: #D8C7F5;
+  --lavender: #BFA2DB;
+
+  --destructive: oklch(0.62 0.2 22);
+  --destructive-foreground: #F5ECFF;
+
+  --border: rgb(191 162 219 / 0.18);
+  --input: rgb(75 46 131 / 0.5);
+  --ring: #BFA2DB;
+
+  --gradient-romantic: linear-gradient(135deg, #4B2E83 0%, #5E3AA5 45%, #E8B4FF 100%);
+  --gradient-primary: linear-gradient(135deg, #5E3AA5 0%, #8659C7 55%, #E8B4FF 100%);
+  --gradient-blush: linear-gradient(135deg, #D8C7F5, #E8B4FF);
+  --shadow-soft: 0 10px 30px -12px rgb(94 58 165 / 0.55);
+  --shadow-glow: 0 22px 70px -18px rgb(232 180 255 / 0.45);
+  --shadow-card: 0 12px 40px -18px rgb(0 0 0 / 0.55);
+}
+
+.dark { color-scheme: dark; }
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html, body {
+    background:
+      radial-gradient(ellipse at 15% 10%, rgb(94 58 165 / 0.45), transparent 55%),
+      radial-gradient(ellipse at 90% 85%, rgb(232 180 255 / 0.22), transparent 60%),
+      radial-gradient(ellipse at 50% 50%, rgb(75 46 131 / 0.25), transparent 70%),
+      var(--color-background);
+    background-attachment: fixed;
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    min-height: 100vh;
+    color-scheme: dark;
+  }
+
+
+  input, textarea, select {
+    background: rgb(34 26 53 / 0.65);
+  }
+  input:focus-visible, textarea:focus-visible, select:focus-visible {
+    box-shadow: 0 0 0 3px rgb(232 180 255 / 0.28);
+    border-color: rgb(191 162 219 / 0.6);
+    outline: none;
+  }
+
+  h1, h2, h3, h4, .font-serif {
+    font-family: var(--font-serif);
+    letter-spacing: -0.01em;
+  }
+}
+
+@utility glass-card {
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.04), rgb(255 255 255 / 0.015)), color-mix(in oklab, var(--card) 92%, transparent);
+  backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid rgb(191 162 219 / 0.15);
+  box-shadow: var(--shadow-card), inset 0 1px 0 rgb(255 255 255 / 0.05);
+  border-radius: var(--radius-2xl);
+}
+
+@utility gradient-text {
+  background: linear-gradient(135deg, #D8C7F5 0%, #E8B4FF 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -37,8 +166,11 @@
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
 .animate-fade-up { animation: fade-up 0.5s ease both; }
 .animate-soft-pulse { animation: soft-pulse 2.4s ease-in-out infinite; }
 .animate-float-heart { animation: float-heart 1.6s ease-out forwards; }
+    
+
+
+
 
