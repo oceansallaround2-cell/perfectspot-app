@@ -79,6 +79,30 @@
   --shadow-soft: 0 10px 30px -12px rgb(94 58 165 / 0.55);
   --shadow-glow: 0 22px 70px -18px rgb(232 180 255 / 0.45);
   --shadow-card: 0 12px 40px -18px rgb(0 0 0 / 0.55);
+  /* ===== Perfect Spot Premium ===== */
+
+--gold: #f7d56b;
+--gold-soft: #ffefb5;
+
+--bg-dark: #080312;
+--bg-purple: #140521;
+--bg-card: rgba(25, 12, 40, 0.72);
+
+--glass-border: rgba(255 , 255, 255, 0.10);
+
+--purple-1:#6E44FF;
+--purple-2:#A855F7;
+--purple-3:#C084FC;
+
+--sparkle:#ffffff;
+
+--shadow-premium:
+0 25px 70px rgba(116, 70, 255, 0.28);
+
+--shadow-button:
+0 0 25px rgba(146, 88, 255, 0.45);
+
+--radius-premium: 32px;
 }
 
 .dark { color-scheme: dark; }
@@ -169,3 +193,153 @@
 .animate-fade-up { animation: fade-up 0.5s ease both; }
 .animate-soft-pulse { animation: soft-pulse 2.4s ease-in-out infinite; }
 .animate-float-heart { animation: float-heart 1.6s ease-out forwards; }
+/* ==============================
+   PERFECT SPOT ANIMATIONS
+================================ */
+
+@keyframes floating{
+
+0%{
+transform:translateY(0px);
+}
+
+50%{
+transform:translateY(-8px);
+}
+
+100%{
+transform:translateY(0px);
+}
+
+}
+
+.animate-floating{
+
+animation:floating 6s ease-in-out infinite;
+
+}
+@keyframes glow{
+
+0%{
+box-shadow:0 0 18px rgba(145,85,255,.35);
+}
+
+50%{
+box-shadow:0 0 35px rgba(190,120,255,.75);
+}
+
+100%{
+box-shadow:0 0 18px rgba(145,85,255,.35);
+}
+
+}
+
+.animate-glow{
+
+animation:glow 2.8s ease-in-out infinite;
+
+}
+@keyframes sparkle{
+
+0%{
+
+opacity:0;
+
+transform:
+translateY(40px)
+scale(.2);
+
+}
+
+40%{
+
+opacity:1;
+
+}
+
+100%{
+
+opacity:0;
+
+transform:
+translateY(-220px)
+scale(1.4);
+
+}
+
+}
+
+.sparkle{
+
+position:absolute;
+
+width:4px;
+
+height:4px;
+
+border-radius:50%;
+
+background:white;
+
+filter:blur(.5px);
+
+animation:sparkle linear infinite;
+
+  }
+.bg-premium{
+  background:
+    radial-gradient(circle at top,
+      rgba(132, 88, 255, 0.35),
+      transparent 35%),
+
+    radial-gradient(circle at bottom,
+      rgba(87, 53, 199, 0.25),
+      transparent 40%),
+
+    linear-gradient(
+      180deg,
+      #07020f,
+      #12041d,
+      #090112);
+}
+.premium-card{
+
+background:rgba(22,12,34,.72);
+
+backdrop-filter:blur(26px);
+
+border:1px solid rgba(255,255,255,.08);
+
+border-radius:32px;
+
+box-shadow:
+
+0 0 45px rgba(112,73,255,.25);
+
+}
+
+.premium-input{
+
+height:58px;
+
+border-radius:18px;
+
+background:rgba(255,255,255,.04);
+
+border:1px solid rgba(255,255,255,.08);
+
+transition:.35s;
+
+}
+
+.premium-input:focus{
+
+border-color:#B685FF;
+
+box-shadow:
+
+0 0 18px rgba(164,98,255,.35);
+
+}
+
+
