@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Heart, Send, Trash2, Loader2, MoreVertical } from "lucide-react";
+import { Heart, Send, Trash2, Loader2, MoreVertical, Pencil, Check, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ReactionsProvider, ReactionBar } from "@/components/Reactions";
+import { getPartnerId, notifyPartner } from "@/lib/notifications";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,7 +38,13 @@ const PRESETS = [
   "Come back soon 💜",
 ];
 
-interface LoveMsg { id: string; sender_id: string; message: string; created_at: string; }
+interface LoveMsg {
+  id: string;
+  sender_id: string;
+  message: string;
+  created_at: string;
+  updated_at?: string | null;
+}
 
 function useHearts() {
   const [hearts, setHearts] = useState<{ id: number; x: number }[]>([]);
@@ -54,9 +62,12 @@ function LovePage() {
   const { user } = Route.useRouteContext();
   const [messages, setMessages] = useState<LoveMsg[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
+  const [partnerId, setPartnerId] = useState<string | null>(null);
   const [custom, setCustom] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
   const { hearts, burst } = useHearts();
 
   const load = useCallback(async () => {
@@ -70,17 +81,19 @@ function LovePage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { getPartnerId(user.id).then(setPartnerId); }, [user.id]);
 
   useEffect(() => {
     const ch = supabase
       .channel("love-messages")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "love_messages" }, (payload) => {
         const msg = payload.new as LoveMsg;
-        setMessages((m) => [msg, ...m]);
-        if (msg.sender_id !== user.id) {
-          burst();
-          toast(msg.message, { icon: "💜" });
-        }
+        setMessages((m) => (m.some((x) => x.id === msg.id) ? m : [msg, ...m]));
+        if (msg.sender_id !== user.id) burst();
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "love_messages" }, (payload) => {
+        const msg = payload.new as LoveMsg;
+        setMessages((m) => m.map((x) => (x.id === msg.id ? msg : x)));
       })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "love_messages" }, (payload) => {
         setMessages((m) => m.filter((x) => x.id !== (payload.old as LoveMsg).id));
@@ -95,8 +108,43 @@ function LovePage() {
     burst();
     const { error } = await supabase.from("love_messages").insert({ sender_id: user.id, message: text.trim() });
     setSending(false);
-    if (error) toast.error("Couldn't send", { description: error.message });
-    else { setCustom(""); toast.success("Sent with love 💜"); }
+    if (error) {
+      toast.error("Couldn't send", { description: error.message });
+      return;
+    }
+    setCustom("");
+    toast.success("Sent with love 💜");
+    notifyPartner({
+      actorId: user.id,
+      recipientId: partnerId,
+      type: "love",
+      title: "New love note 💜",
+      body: text.trim(),
+      link: "/love",
+    });
+  }
+
+  function startEdit(m: LoveMsg) {
+    setEditingId(m.id);
+    setEditText(m.message);
+  }
+
+  async function saveEdit() {
+    if (!editingId) return;
+    const text = editText.trim();
+    if (!text) return;
+    const id = editingId;
+    setEditingId(null);
+    const { error } = await supabase
+      .from("love_messages")
+      .update({ message: text, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("sender_id", user.id);
+    if (error) toast.error("Couldn't edit", { description: error.message });
+    else {
+      setMessages((m) => m.map((x) => (x.id === id ? { ...x, message: text, updated_at: new Date().toISOString() } : x)));
+      toast.success("Updated");
+    }
   }
 
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
@@ -120,118 +168,152 @@ function LovePage() {
   }
 
   return (
-    <div className="relative space-y-6">
-      <div>
-        <h1 className="font-serif text-3xl">Send Love</h1>
-        <p className="mt-1 text-sm text-muted-foreground">A tap. A smile on the other side.</p>
-      </div>
+    <ReactionsProvider targetType="love_message" userId={user.id}>
+      <div className="relative space-y-6">
+        <div>
+          <h1 className="font-serif text-3xl">Send Love</h1>
+          <p className="mt-1 text-sm text-muted-foreground">A tap. A smile on the other side.</p>
+        </div>
 
-      <section className="glass-card p-5">
-        <div className="mb-3 text-xs uppercase tracking-widest text-muted-foreground">Quick love</div>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {PRESETS.map((p, i) => (
-            <button
-              key={p}
-              onClick={() => send(p)}
-              disabled={sending}
-              className="animate-fade-up group flex items-center justify-between rounded-2xl border border-border/50 bg-background/60 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md"
-              style={{ animationDelay: `${i * 40}ms` }}
-            >
-              <span className="text-sm font-medium">{p}</span>
-              <Send className="h-4 w-4 text-primary opacity-60 transition group-hover:opacity-100 group-hover:translate-x-0.5" />
-            </button>
+        <section className="glass-card p-5">
+          <div className="mb-3 text-xs uppercase tracking-widest text-muted-foreground">Quick love</div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {PRESETS.map((p, i) => (
+              <button
+                key={p}
+                onClick={() => send(p)}
+                disabled={sending}
+                className="press-pop shine animate-fade-up group flex items-center justify-between rounded-2xl border border-border/50 bg-background/60 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md hover:[box-shadow:var(--shadow-soft)]"
+                style={{ animationDelay: `${i * 40}ms` }}
+              >
+                <span className="text-sm font-medium">{p}</span>
+                <Send className="h-4 w-4 text-primary opacity-60 transition group-hover:opacity-100 group-hover:translate-x-0.5" />
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="glass-card p-5">
+          <div className="mb-3 text-xs uppercase tracking-widest text-muted-foreground">Custom note</div>
+          <form onSubmit={(e) => { e.preventDefault(); send(custom); }} className="flex gap-2">
+            <Input value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="Say something sweet…" className="rounded-full bg-background/70" />
+            <Button type="submit" disabled={sending || !custom.trim()} className="btn-romantic press-pop shine rounded-full px-5">
+              <Send className="h-4 w-4" />
+            </Button>
+          </form>
+        </section>
+
+        <section>
+          <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
+            <Heart className="h-3 w-3 text-primary" fill="currentColor" /> Love history
+          </div>
+          {loading ? (
+            <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
+          ) : messages.length === 0 ? (
+            <div className="glass-card p-8 text-center text-sm text-muted-foreground">Send the first message 💜</div>
+          ) : (
+            <ul className="space-y-3">
+              {messages.map((m) => {
+                const mine = m.sender_id === user.id;
+                return (
+                  <li key={m.id} className={`animate-fade-up flex flex-col gap-1 ${mine ? "items-end" : "items-start"}`}>
+                    <div
+                      className="group relative max-w-[80%] rounded-3xl px-4 py-2.5 pr-8 shadow-sm"
+                      style={mine
+                        ? { background: "var(--gradient-primary)", color: "var(--primary-foreground)", borderBottomRightRadius: "0.5rem" }
+                        : { background: "var(--card)", border: "1px solid var(--border)", borderBottomLeftRadius: "0.5rem" }}
+                      onTouchStart={mine ? () => startLongPress(m.id) : undefined}
+                      onTouchEnd={mine ? cancelLongPress : undefined}
+                      onTouchMove={mine ? cancelLongPress : undefined}
+                    >
+                      {editingId === m.id ? (
+                        <div className="flex items-center gap-1">
+                          <Input
+                            autoFocus
+                            value={editText}
+                            onChange={(e) => setEditText(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter") saveEdit(); if (e.key === "Escape") setEditingId(null); }}
+                            className="h-8 rounded-full bg-background/80 text-foreground"
+                          />
+                          <button onClick={saveEdit} className="press-pop rounded-full p-1.5" aria-label="Save"><Check className="h-4 w-4" /></button>
+                          <button onClick={() => setEditingId(null)} className="press-pop rounded-full p-1.5" aria-label="Cancel"><X className="h-4 w-4" /></button>
+                        </div>
+                      ) : (
+                        <div className="text-sm">{m.message}</div>
+                      )}
+                      <div className={`mt-1 text-[9px] uppercase tracking-widest ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                        {profiles[m.sender_id] ?? "Someone"} · {new Date(m.created_at).toLocaleString()}
+                        {m.updated_at ? " · edited" : ""}
+                      </div>
+                      {mine && editingId !== m.id && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              className="press-pop absolute right-1 top-1 rounded-full p-1 text-primary-foreground/80 opacity-70 transition hover:opacity-100 hover:bg-black/10"
+                              aria-label="Message options"
+                            >
+                              <MoreVertical className="h-3.5 w-3.5" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-36">
+                            <DropdownMenuItem onClick={() => startEdit(m)}>
+                              <Pencil className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => setPendingDelete(m.id)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </div>
+                    <ReactionBar
+                      targetId={m.id}
+                      align={mine ? "end" : "start"}
+                      onReacted={(emoji) =>
+                        notifyPartner({
+                          actorId: user.id,
+                          recipientId: partnerId,
+                          type: "reaction",
+                          title: `Reacted ${emoji}`,
+                          body: m.message,
+                          link: "/love",
+                        })
+                      }
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+
+        <AlertDialog open={pendingDelete !== null} onOpenChange={(o) => !o && setPendingDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this message?</AlertDialogTitle>
+              <AlertDialogDescription>This can't be undone. It will disappear for both of you.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <div className="pointer-events-none fixed inset-0 z-30 overflow-hidden">
+          {hearts.map((h) => (
+            <Heart
+              key={h.id}
+              className="animate-float-heart absolute bottom-24 h-8 w-8 text-primary"
+              fill="currentColor"
+              style={{ left: `${h.x}%` }}
+            />
           ))}
         </div>
-      </section>
-
-      <section className="glass-card p-5">
-        <div className="mb-3 text-xs uppercase tracking-widest text-muted-foreground">Custom note</div>
-        <form onSubmit={(e) => { e.preventDefault(); send(custom); }} className="flex gap-2">
-          <Input value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="Say something sweet…" className="rounded-full bg-background/70" />
-          <Button type="submit" disabled={sending || !custom.trim()} className="btn-romantic rounded-full px-5">
-            <Send className="h-4 w-4" />
-          </Button>
-        </form>
-      </section>
-
-      <section>
-        <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
-          <Heart className="h-3 w-3 text-primary" fill="currentColor" /> Love history
-        </div>
-        {loading ? (
-          <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
-        ) : messages.length === 0 ? (
-          <div className="glass-card p-8 text-center text-sm text-muted-foreground">Send the first message 💜</div>
-        ) : (
-          <ul className="space-y-2">
-            {messages.map((m) => {
-              const mine = m.sender_id === user.id;
-              return (
-                <li key={m.id} className={`animate-fade-up flex ${mine ? "justify-end" : "justify-start"}`}>
-                  <div
-                    className="group relative max-w-[80%] rounded-3xl px-4 py-2.5 pr-8 shadow-sm"
-                    style={mine
-                      ? { background: "var(--gradient-primary)", color: "var(--primary-foreground)", borderBottomRightRadius: "0.5rem" }
-                      : { background: "var(--card)", border: "1px solid var(--border)", borderBottomLeftRadius: "0.5rem" }}
-                    onTouchStart={mine ? () => startLongPress(m.id) : undefined}
-                    onTouchEnd={mine ? cancelLongPress : undefined}
-                    onTouchMove={mine ? cancelLongPress : undefined}
-                  >
-                    <div className="text-sm">{m.message}</div>
-                    <div className={`mt-1 text-[9px] uppercase tracking-widest ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                      {profiles[m.sender_id] ?? "Someone"} · {new Date(m.created_at).toLocaleString()}
-                    </div>
-                    {mine && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            className="absolute right-1 top-1 rounded-full p-1 text-primary-foreground/80 opacity-70 transition hover:opacity-100 hover:bg-black/10"
-                            aria-label="Message options"
-                          >
-                            <MoreVertical className="h-3.5 w-3.5" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-36">
-                          <DropdownMenuItem
-                            onClick={() => setPendingDelete(m.id)}
-                            className="text-destructive focus:text-destructive"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
-
-      <AlertDialog open={pendingDelete !== null} onOpenChange={(o) => !o && setPendingDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this message?</AlertDialogTitle>
-            <AlertDialogDescription>This can't be undone. It will disappear for both of you.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <div className="pointer-events-none fixed inset-0 z-30 overflow-hidden">
-        {hearts.map((h) => (
-          <Heart
-            key={h.id}
-            className="animate-float-heart absolute bottom-24 h-8 w-8 text-primary"
-            fill="currentColor"
-            style={{ left: `${h.x}%` }}
-          />
-        ))}
       </div>
-    </div>
+    </ReactionsProvider>
   );
 }
