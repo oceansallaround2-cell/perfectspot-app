@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Tv, Copy, Check, LogOut, Send, Mic, MicOff, Users, Play, Pause, Link2, AlertCircle } from "lucide-react";
+import { Tv, Copy, Check, LogOut, Send, Mic, MicOff, Users, Play, Pause, Link2, AlertCircle, Square } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,9 @@ interface Message {
   sender_id: string;
   message: string;
   created_at: string;
+  kind?: string | null;
+  audio_path?: string | null;
+  duration_seconds?: number | null;
 }
 
 function genCode() {
@@ -799,7 +802,27 @@ function ChatPanel({
   members: Member[];
 }) {
   const [text, setText] = useState("");
+  const [recording, setRecording] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [audioUrls, setAudioUrls] = useState<Record<string, string>>({});
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const startedAtRef = useRef<number>(0);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const missing = messages.filter((m) => m.kind === "voice" && m.audio_path && !audioUrls[m.id]);
+    if (missing.length === 0) return;
+    (async () => {
+      const entries = await Promise.all(
+        missing.map(async (m) => {
+          const { data } = await supabase.storage.from("voice-notes").createSignedUrl(m.audio_path as string, 60 * 60 * 6);
+          return [m.id, data?.signedUrl ?? ""] as const;
+        }),
+      );
+      setAudioUrls((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
+    })();
+  }, [messages, audioUrls]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -815,12 +838,54 @@ function ChatPanel({
     const message = text.trim();
     if (!message) return;
     setText("");
-    const { error } = await supabase.from("watch_messages").insert({ room_id: roomId, sender_id: userId, message });
+    const { error } = await supabase.from("watch_messages").insert({ room_id: roomId, sender_id: userId, message, kind: "text" });
     if (error) {
       toast.error("Failed to send");
       setText(message);
     }
   };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      chunksRef.current = [];
+      startedAtRef.current = Date.now();
+      recorder.ondataavailable = (ev) => { if (ev.data.size > 0) chunksRef.current.push(ev.data); };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        const seconds = Math.round((Date.now() - startedAtRef.current) / 1000);
+        setRecording(false);
+        if (blob.size < 500) return;
+        setUploading(true);
+        const path = `${userId}/${crypto.randomUUID()}.webm`;
+        const { error: upErr } = await supabase.storage.from("voice-notes").upload(path, blob, { contentType: blob.type });
+        if (upErr) {
+          setUploading(false);
+          toast.error("Couldn't send voice note", { description: upErr.message });
+          return;
+        }
+        const { error } = await supabase.from("watch_messages").insert({
+          room_id: roomId,
+          sender_id: userId,
+          message: `Voice note · ${seconds}s`,
+          kind: "voice",
+          audio_path: path,
+          duration_seconds: seconds,
+        });
+        setUploading(false);
+        if (error) toast.error("Couldn't send voice note");
+      };
+      recorderRef.current = recorder;
+      recorder.start();
+      setRecording(true);
+    } catch {
+      toast.error("Microphone unavailable");
+    }
+  };
+
+  const stopRecording = () => recorderRef.current?.stop();
 
   return (
     <div className="rounded-3xl border border-border/50 bg-card p-4" style={{ boxShadow: "var(--shadow-card)" }}>
@@ -836,7 +901,11 @@ function ChatPanel({
                 style={mine ? { background: "var(--gradient-primary)" } : undefined}
               >
                 {!mine && <div className="text-[10px] font-semibold opacity-80">{nameMap.get(m.sender_id) ?? "Partner"}</div>}
-                <div className="whitespace-pre-wrap break-words">{m.message}</div>
+                {m.kind === "voice" && audioUrls[m.id] ? (
+                  <audio controls src={audioUrls[m.id]} className="mt-1 h-9 w-56 max-w-full" />
+                ) : (
+                  <div className="whitespace-pre-wrap break-words">{m.message}</div>
+                )}
                 <div className={`mt-0.5 text-[10px] ${mine ? "opacity-80" : "text-muted-foreground"}`}>
                   {new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 </div>
@@ -858,7 +927,17 @@ function ChatPanel({
           placeholder="Type a message…"
           className="rounded-full"
         />
-        <Button onClick={send} size="icon" className="shrink-0 rounded-full" disabled={!text.trim()}>
+        <Button
+          onClick={recording ? stopRecording : startRecording}
+          size="icon"
+          variant={recording ? "destructive" : "secondary"}
+          className="press-pop shrink-0 rounded-full"
+          disabled={uploading}
+          aria-label={recording ? "Stop recording" : "Record voice note"}
+        >
+          {recording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+        </Button>
+        <Button onClick={send} size="icon" className="btn-romantic press-pop shrink-0 rounded-full" disabled={!text.trim()}>
           <Send className="h-4 w-4" />
         </Button>
       </div>
