@@ -151,6 +151,25 @@
   box-shadow: 0 0 0 1px rgb(191 162 219 / 0.25), 0 0 40px -8px rgb(232 180 255 / 0.35);
 }
 
+@utility press-pop {
+  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.3, 1), filter 0.18s ease;
+  &:active { transform: scale(0.93); }
+}
+
+@utility shine {
+  position: relative;
+  overflow: hidden;
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(115deg, transparent 20%, rgb(255 255 255 / 0.22) 45%, transparent 70%);
+    transform: translateX(-120%);
+    transition: transform 0.7s ease;
+  }
+  &:hover::before { transform: translateX(120%); }
+}
+
 @keyframes float-heart {
   0% { transform: translateY(0) scale(0.6); opacity: 0; }
   20% { opacity: 1; }
@@ -166,9 +185,35 @@
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+@keyframes ps-ripple {
+  from { transform: scale(1); opacity: 0.65; }
+  to { transform: scale(16); opacity: 0; }
+}
+
 .animate-fade-up { animation: fade-up 0.5s ease both; }
 .animate-soft-pulse { animation: soft-pulse 2.4s ease-in-out infinite; }
 .animate-float-heart { animation: float-heart 1.6s ease-out forwards; }
+
+/* Global tap ripple, injected on pointer-down over any button */
+.ps-ripple {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  height: 14px;
+  width: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgb(232 180 255 / 0.7), rgb(232 180 255 / 0) 70%);
+  animation: ps-ripple 0.6s ease-out forwards;
+}
+
+/* Every button gets a subtle premium press + glow */
+button, a[role="button"] {
+  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.3, 1), box-shadow 0.25s ease, filter 0.25s ease;
+}
+button:not(:disabled):active { transform: scale(0.97); }
+
     
 
 

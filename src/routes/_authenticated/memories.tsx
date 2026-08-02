@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Upload, X, Search, Filter, Trash2, Play, Loader2, Image as ImageIcon, Lock } from "lucide-react";
+import { Upload, X, Search, Filter, Trash2, Play, Loader2, Image as ImageIcon, Lock, Pencil, Check } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { MemoriesLock, useMemoriesUnlocked, lockMemories } from "@/components/MemoriesLock";
+import { ReactionsProvider, ReactionBar } from "@/components/Reactions";
+import { getPartnerId, notifyPartner } from "@/lib/notifications";
 
 export const Route = createFileRoute("/_authenticated/memories")({
   component: MemoriesGate,
@@ -28,6 +30,8 @@ interface Memory {
   media_path: string;
   media_type: string;
   caption: string | null;
+  title?: string | null;
+  updated_at?: string | null;
   created_at: string;
   uploader_name?: string;
   signed_url?: string;
@@ -53,6 +57,10 @@ function MemoriesPage({ onLock }: { onLock: () => void }) {
   const [caption, setCaption] = useState("");
   const [pending, setPending] = useState<File | null>(null);
   const [viewer, setViewer] = useState<Memory | null>(null);
+  const [partnerId, setPartnerId] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editCaption, setEditCaption] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
 
   const loadAll = useCallback(async () => {
@@ -80,6 +88,7 @@ function MemoriesPage({ onLock }: { onLock: () => void }) {
   }, []);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+  useEffect(() => { getPartnerId(user.id).then(setPartnerId); }, [user.id]);
 
   useEffect(() => {
     const ch = supabase
@@ -119,6 +128,14 @@ function MemoriesPage({ onLock }: { onLock: () => void }) {
       if (insErr) throw insErr;
       setProgress(100);
       toast.success("Memory saved 💜");
+      notifyPartner({
+        actorId: user.id,
+        recipientId: partnerId,
+        type: "memory",
+        title: mediaType === "video" ? "New video memory 📸" : "New photo memory 📸",
+        body: caption.trim() || "Tap to see it",
+        link: "/memories",
+      });
       setPending(null);
       setCaption("");
       if (fileInput.current) fileInput.current.value = "";
@@ -129,6 +146,26 @@ function MemoriesPage({ onLock }: { onLock: () => void }) {
       setUploading(false);
       setTimeout(() => setProgress(0), 500);
     }
+  }
+
+  async function saveMemoryEdit(m: Memory) {
+    const { error } = await supabase
+      .from("memories")
+      .update({
+        title: editTitle.trim() || null,
+        caption: editCaption.trim() || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", m.id)
+      .eq("uploader_id", user.id);
+    if (error) {
+      toast.error("Couldn't update", { description: error.message });
+      return;
+    }
+    setEditing(false);
+    setViewer({ ...m, title: editTitle.trim() || null, caption: editCaption.trim() || null });
+    toast.success("Memory updated");
+    loadAll();
   }
 
   async function remove(m: Memory) {
@@ -158,6 +195,7 @@ function MemoriesPage({ onLock }: { onLock: () => void }) {
   }, [filtered]);
 
   return (
+    <ReactionsProvider targetType="memory" userId={user.id}>
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -261,7 +299,7 @@ function MemoriesPage({ onLock }: { onLock: () => void }) {
                       </>
                     )}
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2 text-left">
-                      <div className="line-clamp-1 text-[10px] font-medium text-white">{m.caption ?? "\u00A0"}</div>
+                      <div className="line-clamp-1 text-[10px] font-medium text-white">{m.title ?? m.caption ?? "\u00A0"}</div>
                       <div className="text-[9px] text-white/70">{m.uploader_name} · {new Date(m.created_at).toLocaleDateString()}</div>
                     </div>
                   </button>
@@ -283,21 +321,62 @@ function MemoriesPage({ onLock }: { onLock: () => void }) {
                   <video src={viewer.signed_url} controls autoPlay className="max-h-[70vh] w-full" />
                 )}
               </div>
-              <div className="flex items-start justify-between gap-4 p-4">
-                <div>
-                  {viewer.caption && <p className="font-serif text-lg">{viewer.caption}</p>}
-                  <p className="mt-1 text-xs text-muted-foreground">By {viewer.uploader_name} · {new Date(viewer.created_at).toLocaleString()}</p>
+              <div className="space-y-3 p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    {editing ? (
+                      <div className="space-y-2">
+                        <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Title (optional)" className="rounded-xl bg-background/70" />
+                        <Textarea value={editCaption} onChange={(e) => setEditCaption(e.target.value)} rows={2} placeholder="Caption…" className="rounded-xl bg-background/70" />
+                        <div className="flex gap-2">
+                          <Button onClick={() => saveMemoryEdit(viewer)} className="btn-romantic press-pop rounded-full px-4"><Check className="mr-1 h-4 w-4" /> Save</Button>
+                          <Button variant="ghost" onClick={() => setEditing(false)} className="press-pop rounded-full px-4">Cancel</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {viewer.title && <p className="font-serif text-xl">{viewer.title}</p>}
+                        {viewer.caption && <p className="font-serif text-lg">{viewer.caption}</p>}
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          By {viewer.uploader_name} · {new Date(viewer.created_at).toLocaleString()}{viewer.updated_at ? " · edited" : ""}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                  {viewer.uploader_id === user.id && !editing && (
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        onClick={() => { setEditing(true); setEditTitle(viewer.title ?? ""); setEditCaption(viewer.caption ?? ""); }}
+                        className="press-pop rounded-full p-2 text-muted-foreground hover:text-primary"
+                        aria-label="Edit memory"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button onClick={() => { remove(viewer); setViewer(null); }} className="press-pop rounded-full p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
-                {viewer.uploader_id === user.id && (
-                  <button onClick={() => { remove(viewer); setViewer(null); }} className="rounded-full p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                )}
+                <ReactionBar
+                  targetId={viewer.id}
+                  onReacted={(emoji) =>
+                    notifyPartner({
+                      actorId: user.id,
+                      recipientId: partnerId,
+                      type: "reaction",
+                      title: `Reacted ${emoji} to a memory`,
+                      body: viewer.title ?? viewer.caption ?? "",
+                      link: "/memories",
+                    })
+                  }
+                />
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
     </div>
+    </ReactionsProvider>
   );
 }

@@ -5,6 +5,26 @@ import { Heart, LogOut, LayoutDashboard, Image as ImageIcon, Send, Calendar, Boo
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { accountByEmail } from "@/lib/accounts";
+import { NotificationCenter } from "@/components/NotificationCenter";
+import { enablePush, pushSupported } from "@/lib/notifications";
+
+/** Premium tap ripple on every button in the app. */
+function useGlobalRipple() {
+  useEffect(() => {
+    function onDown(e: PointerEvent) {
+      const target = (e.target as HTMLElement | null)?.closest("button, a[role='button'], .btn-romantic");
+      if (!target) return;
+      const el = document.createElement("span");
+      el.className = "ps-ripple";
+      el.style.left = `${e.clientX}px`;
+      el.style.top = `${e.clientY}px`;
+      document.body.appendChild(el);
+      window.setTimeout(() => el.remove(), 650);
+    }
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
+  }, []);
+}
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -36,6 +56,14 @@ function AuthedLayout() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [profile, setProfile] = useState<Profile | null>(null);
+  useGlobalRipple();
+
+  // Silently refresh the push subscription when permission was already granted.
+  useEffect(() => {
+    if (pushSupported() && Notification.permission === "granted") {
+      enablePush(user.id).catch(() => {});
+    }
+  }, [user.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,9 +110,12 @@ function AuthedLayout() {
               {profile && <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Hi {profile.display_name} 💜</div>}
             </div>
           </Link>
-          <Button variant="ghost" size="icon" onClick={signOut} className="rounded-full text-muted-foreground hover:text-primary">
-            <LogOut className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <NotificationCenter userId={user.id} />
+            <Button variant="ghost" size="icon" onClick={signOut} className="rounded-full text-muted-foreground hover:text-primary">
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </header>
 

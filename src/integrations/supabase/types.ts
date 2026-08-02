@@ -52,6 +52,7 @@ export type Database = {
           id: string
           is_favorite: boolean
           mood: string | null
+          updated_at: string | null
         }
         Insert: {
           author_id: string
@@ -60,6 +61,7 @@ export type Database = {
           id?: string
           is_favorite?: boolean
           mood?: string | null
+          updated_at?: string | null
         }
         Update: {
           author_id?: string
@@ -68,6 +70,7 @@ export type Database = {
           id?: string
           is_favorite?: boolean
           mood?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -77,18 +80,21 @@ export type Database = {
           id: string
           message: string
           sender_id: string
+          updated_at: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           message: string
           sender_id: string
+          updated_at?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           message?: string
           sender_id?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -100,6 +106,8 @@ export type Database = {
           media_path: string
           media_type: string
           media_url: string
+          title: string | null
+          updated_at: string | null
           uploader_id: string
         }
         Insert: {
@@ -109,6 +117,8 @@ export type Database = {
           media_path: string
           media_type: string
           media_url: string
+          title?: string | null
+          updated_at?: string | null
           uploader_id: string
         }
         Update: {
@@ -118,7 +128,45 @@ export type Database = {
           media_path?: string
           media_type?: string
           media_url?: string
+          title?: string | null
+          updated_at?: string | null
           uploader_id?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          actor_id: string
+          body: string | null
+          created_at: string
+          id: string
+          is_read: boolean
+          link: string | null
+          recipient_id: string
+          title: string
+          type: string
+        }
+        Insert: {
+          actor_id: string
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          link?: string | null
+          recipient_id: string
+          title: string
+          type: string
+        }
+        Update: {
+          actor_id?: string
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          link?: string | null
+          recipient_id?: string
+          title?: string
+          type?: string
         }
         Relationships: []
       }
@@ -146,24 +194,90 @@ export type Database = {
         }
         Relationships: []
       }
-      watch_messages: {
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      reactions: {
         Row: {
           created_at: string
+          emoji: string
           id: string
+          target_id: string
+          target_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji: string
+          id?: string
+          target_id: string
+          target_type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          target_id?: string
+          target_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      watch_messages: {
+        Row: {
+          audio_path: string | null
+          audio_url: string | null
+          created_at: string
+          duration_seconds: number | null
+          id: string
+          kind: string
           message: string
           room_id: string
           sender_id: string
         }
         Insert: {
+          audio_path?: string | null
+          audio_url?: string | null
           created_at?: string
+          duration_seconds?: number | null
           id?: string
+          kind?: string
           message: string
           room_id: string
           sender_id: string
         }
         Update: {
+          audio_path?: string | null
+          audio_url?: string | null
           created_at?: string
+          duration_seconds?: number | null
           id?: string
+          kind?: string
           message?: string
           room_id?: string
           sender_id?: string
