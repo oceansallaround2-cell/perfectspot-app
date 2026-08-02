@@ -3,11 +3,13 @@ import { buildPushPayload, type PushSubscription } from "@block65/webcrypto-web-
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 export interface PushPayload {
+  [key: string]: string | undefined;
   title: string;
   body: string;
   link?: string;
   tag?: string;
 }
+
 
 export async function pushToUser(recipientId: string, payload: PushPayload) {
   const vapid = {
