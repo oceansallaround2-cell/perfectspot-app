@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { getPartnerId, notifyPartner } from "@/lib/notifications";
 
 export const Route = createFileRoute("/_authenticated/dates")({
   component: DatesPage,
@@ -64,6 +65,8 @@ function DatesPage() {
   const [dateVal, setDateVal] = useState("");
   const [isAnn, setIsAnn] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [partnerId, setPartnerId] = useState<string | null>(null);
+  useEffect(() => { getPartnerId(user.id).then(setPartnerId); }, [user.id]);
 
   const load = useCallback(async () => {
     const { data } = await supabase.from("important_dates").select("*");
@@ -96,6 +99,14 @@ function DatesPage() {
     if (error) toast.error("Couldn't save", { description: error.message });
     else {
       toast.success("Date added 💜");
+      notifyPartner({
+        actorId: user.id,
+        recipientId: partnerId,
+        type: "date",
+        title: `New important date: ${title.trim()}`,
+        body: new Date(`${dateVal}T00:00:00`).toLocaleDateString(),
+        link: "/dates",
+      });
       setTitle(""); setDesc(""); setDateVal(""); setIsAnn(false); setOpen(false);
     }
   }
