@@ -898,6 +898,22 @@ function ChatPanel({
 
   const stopRecording = () => recorderRef.current?.stop();
 
+  const removeMessage = async (m: Message) => {
+    const { error } = await supabase
+      .from("watch_messages")
+      .delete()
+      .eq("id", m.id)
+      .eq("sender_id", userId);
+    if (error) {
+      toast.error("Couldn't delete", { description: error.message });
+      return;
+    }
+    if (m.audio_path) {
+      await supabase.storage.from("voice-notes").remove([m.audio_path]);
+    }
+    setMessages((prev) => prev.filter((x) => x.id !== m.id));
+  };
+
   return (
     <div className="rounded-3xl border border-border/50 bg-card p-4" style={{ boxShadow: "var(--shadow-card)" }}>
       <div className="mb-2 text-sm font-medium">Chat</div>
@@ -905,14 +921,30 @@ function ChatPanel({
         {messages.length === 0 && <div className="text-center text-xs text-muted-foreground">No messages yet.</div>}
         {messages.map((m) => {
           const mine = m.sender_id === userId;
+          const isVoice = m.kind === "voice";
           return (
-            <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+            <div key={m.id} className={`group flex items-center gap-1 ${mine ? "justify-end" : "justify-start"}`}>
+              {mine && (
+                <ConfirmDialog
+                  title={isVoice ? "Delete this voice note?" : "Delete this message?"}
+                  description="It will disappear for both of you right away."
+                  onConfirm={() => removeMessage(m)}
+                  trigger={
+                    <button
+                      aria-label="Delete message"
+                      className="press-pop rounded-full p-1.5 text-muted-foreground opacity-100 transition hover:bg-destructive/10 hover:text-destructive sm:opacity-0 sm:group-hover:opacity-100"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  }
+                />
+              )}
               <div
                 className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${mine ? "text-primary-foreground" : "bg-muted"}`}
                 style={mine ? { background: "var(--gradient-primary)" } : undefined}
               >
                 {!mine && <div className="text-[10px] font-semibold opacity-80">{nameMap.get(m.sender_id) ?? "Partner"}</div>}
-                {m.kind === "voice" && audioUrls[m.id] ? (
+                {isVoice && audioUrls[m.id] ? (
                   <audio controls src={audioUrls[m.id]} className="mt-1 h-9 w-56 max-w-full" />
                 ) : (
                   <div className="whitespace-pre-wrap break-words">{m.message}</div>
@@ -923,6 +955,7 @@ function ChatPanel({
               </div>
             </div>
           );
+
         })}
       </div>
       <div className="flex gap-2">
