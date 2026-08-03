@@ -278,6 +278,15 @@ function RoomView({ room, onLeave, setRoom }: { room: Room; onLeave: () => void;
         { event: "INSERT", schema: "public", table: "watch_messages", filter: `room_id=eq.${room.id}` },
         (payload) => setMessages((prev) => [...prev, payload.new as Message]),
       )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "watch_messages" },
+        (payload) => {
+          const removed = payload.old as { id?: string };
+          if (!removed?.id) return;
+          setMessages((prev) => prev.filter((m) => m.id !== removed.id));
+        },
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
