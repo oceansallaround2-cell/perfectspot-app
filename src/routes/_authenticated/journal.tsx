@@ -88,7 +88,18 @@ function JournalPage() {
   }
 
   async function toggleFav(entry: Entry) {
-    await supabase.from("journal_entries").update({ is_favorite: !entry.is_favorite }).eq("id", entry.id);
+    if (entry.author_id !== user.id) return;
+    // Optimistic flip so the star responds instantly; realtime confirms it.
+    setEntries((prev) => prev.map((e) => (e.id === entry.id ? { ...e, is_favorite: !e.is_favorite } : e)));
+    const { error } = await supabase
+      .from("journal_entries")
+      .update({ is_favorite: !entry.is_favorite })
+      .eq("id", entry.id)
+      .eq("author_id", user.id);
+    if (error) {
+      setEntries((prev) => prev.map((e) => (e.id === entry.id ? { ...e, is_favorite: entry.is_favorite } : e)));
+      toast.error("Couldn't update favorite", { description: error.message });
+    }
   }
 
   function startEdit(entry: Entry) {
@@ -113,8 +124,9 @@ function JournalPage() {
   }
 
   async function remove(id: string) {
-    if (!confirm("Delete this entry?")) return;
-    await supabase.from("journal_entries").delete().eq("id", id);
+    const { error } = await supabase.from("journal_entries").delete().eq("id", id).eq("author_id", user.id);
+    if (error) toast.error("Couldn't delete", { description: error.message });
+    else toast.success("Entry deleted");
   }
 
   const filtered = useMemo(() => entries.filter((e) => {
