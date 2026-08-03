@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ReactionsProvider, ReactionBar } from "@/components/Reactions";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { getPartnerId, notifyPartner } from "@/lib/notifications";
 
 export const Route = createFileRoute("/_authenticated/journal")({
@@ -88,7 +89,18 @@ function JournalPage() {
   }
 
   async function toggleFav(entry: Entry) {
-    await supabase.from("journal_entries").update({ is_favorite: !entry.is_favorite }).eq("id", entry.id);
+    if (entry.author_id !== user.id) return;
+    // Optimistic flip so the star responds instantly; realtime confirms it.
+    setEntries((prev) => prev.map((e) => (e.id === entry.id ? { ...e, is_favorite: !e.is_favorite } : e)));
+    const { error } = await supabase
+      .from("journal_entries")
+      .update({ is_favorite: !entry.is_favorite })
+      .eq("id", entry.id)
+      .eq("author_id", user.id);
+    if (error) {
+      setEntries((prev) => prev.map((e) => (e.id === entry.id ? { ...e, is_favorite: entry.is_favorite } : e)));
+      toast.error("Couldn't update favorite", { description: error.message });
+    }
   }
 
   function startEdit(entry: Entry) {
@@ -113,8 +125,9 @@ function JournalPage() {
   }
 
   async function remove(id: string) {
-    if (!confirm("Delete this entry?")) return;
-    await supabase.from("journal_entries").delete().eq("id", id);
+    const { error } = await supabase.from("journal_entries").delete().eq("id", id).eq("author_id", user.id);
+    if (error) toast.error("Couldn't delete", { description: error.message });
+    else toast.success("Entry deleted");
   }
 
   const filtered = useMemo(() => entries.filter((e) => {
@@ -191,20 +204,38 @@ function JournalPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button onClick={() => toggleFav(e)} className="press-pop rounded-full p-2 text-muted-foreground transition hover:text-primary">
-                      <Star className="h-4 w-4" fill={e.is_favorite ? "currentColor" : "none"} style={e.is_favorite ? { color: "var(--primary)" } : {}} />
-                    </button>
-                    {e.author_id === user.id && (
+                    {e.author_id === user.id ? (
                       <>
-                        <button onClick={() => startEdit(e)} className="press-pop rounded-full p-2 text-muted-foreground transition hover:text-primary">
+                        <button
+                          onClick={() => toggleFav(e)}
+                          aria-label={e.is_favorite ? "Remove from favorites" : "Add to favorites"}
+                          className="press-pop rounded-full p-2 text-muted-foreground transition hover:bg-primary/10 hover:text-primary"
+                        >
+                          <Star className="h-4 w-4 transition-transform" fill={e.is_favorite ? "currentColor" : "none"} style={e.is_favorite ? { color: "var(--primary)" } : {}} />
+                        </button>
+                        <button onClick={() => startEdit(e)} aria-label="Edit entry" className="press-pop rounded-full p-2 text-muted-foreground transition hover:bg-primary/10 hover:text-primary">
                           <Pencil className="h-4 w-4" />
                         </button>
-                        <button onClick={() => remove(e.id)} className="press-pop rounded-full p-2 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        <ConfirmDialog
+                          title="Delete this entry?"
+                          description="This page of your journal will be removed for both of you."
+                          onConfirm={() => remove(e.id)}
+                          trigger={
+                            <button aria-label="Delete entry" className="press-pop rounded-full p-2 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive">
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          }
+                        />
                       </>
+                    ) : (
+                      e.is_favorite && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary">
+                          <Star className="h-3 w-3" fill="currentColor" /> Favorite
+                        </span>
+                      )
                     )}
                   </div>
+
                 </div>
 
                 {editingId === e.id ? (
