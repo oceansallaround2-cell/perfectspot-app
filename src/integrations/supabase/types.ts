@@ -20,27 +20,33 @@ export type Database = {
           creator_id: string
           date: string
           description: string | null
+          event_type: string
           id: string
           is_anniversary: boolean
           title: string
+          updated_at: string | null
         }
         Insert: {
           created_at?: string
           creator_id: string
           date: string
           description?: string | null
+          event_type?: string
           id?: string
           is_anniversary?: boolean
           title: string
+          updated_at?: string | null
         }
         Update: {
           created_at?: string
           creator_id?: string
           date?: string
           description?: string | null
+          event_type?: string
           id?: string
           is_anniversary?: boolean
           title?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
