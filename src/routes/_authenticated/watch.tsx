@@ -911,7 +911,7 @@ function ChatPanel({
     if (m.audio_path) {
       await supabase.storage.from("voice-notes").remove([m.audio_path]);
     }
-    setMessages((prev) => prev.filter((x) => x.id !== m.id));
+
   };
 
   return (
