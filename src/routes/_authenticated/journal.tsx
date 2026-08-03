@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ReactionsProvider, ReactionBar } from "@/components/Reactions";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { getPartnerId, notifyPartner } from "@/lib/notifications";
 
 export const Route = createFileRoute("/_authenticated/journal")({
