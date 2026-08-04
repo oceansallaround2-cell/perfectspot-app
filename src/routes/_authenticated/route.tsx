@@ -66,6 +66,37 @@ function AuthedLayout() {
     }
   }, [user.id]);
 
+  // Take over the app the first time a live surprise is available for this user.
+  useEffect(() => {
+    if (pathname.startsWith("/surprise")) return;
+    let cancelled = false;
+    (async () => {
+      const nowIso = new Date().toISOString();
+      const { data } = await supabase
+        .from("surprise_events")
+        .select("id")
+        .eq("recipient_id", user.id)
+        .lte("start_at", nowIso)
+        .gte("end_at", nowIso)
+        .order("start_at", { ascending: false })
+        .limit(1);
+      const ev = data?.[0];
+      if (!ev || cancelled) return;
+      const { data: progress } = await supabase
+        .from("surprise_progress")
+        .select("id")
+        .eq("event_id", ev.id)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!progress && !cancelled) {
+        navigate({ to: "/surprise/$eventId", params: { eventId: ev.id }, search: {} });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id, pathname, navigate]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
