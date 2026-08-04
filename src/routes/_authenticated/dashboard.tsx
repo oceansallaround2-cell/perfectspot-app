@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight, Image as ImageIcon, Send, Calendar, BookHeart, Heart } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
+import { surpriseMeta } from "@/lib/surprise";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
@@ -13,8 +14,22 @@ interface Profile { display_name: string; partner_name: string; }
 function Dashboard() {
   const { user } = Route.useRouteContext();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [surprise, setSurprise] = useState<{ id: string; title: string; event_type: string } | null>(null);
   const [counts, setCounts] = useState({ memories: 0, messages: 0, dates: 0, entries: 0 });
   const [daysTogether, setDaysTogether] = useState<number | null>(null);
+
+  useEffect(() => {
+    const nowIso = new Date().toISOString();
+    supabase
+      .from("surprise_events")
+      .select("id,title,event_type")
+      .lte("start_at", nowIso)
+      .gte("end_at", nowIso)
+      .order("start_at", { ascending: false })
+      .limit(1)
+      .then(({ data }) => setSurprise(data?.[0] ?? null));
+  }, [user.id]);
+
 
   useEffect(() => {
     (async () => {
