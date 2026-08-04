@@ -245,7 +245,7 @@ function CreateDialog({
   onCreated: (ev: SurpriseEvent) => void;
 }) {
   const [type, setType] = useState<string>("birthday");
-  const [title, setTitle] = useState(SURPRISE_TYPES[0].defaultTitle);
+  const [title, setTitle] = useState<string>(SURPRISE_TYPES[0].defaultTitle);
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [saving, setSaving] = useState(false);
