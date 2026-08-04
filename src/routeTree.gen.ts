@@ -18,6 +18,7 @@ import { Route as AuthenticatedLoveRouteImport } from './routes/_authenticated/l
 import { Route as AuthenticatedJournalRouteImport } from './routes/_authenticated/journal'
 import { Route as AuthenticatedDatesRouteImport } from './routes/_authenticated/dates'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedSurpriseEventIdRouteImport } from './routes/_authenticated/surprise.$eventId'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -63,6 +64,12 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSurpriseEventIdRoute =
+  AuthenticatedSurpriseEventIdRouteImport.update({
+    id: '/surprise/$eventId',
+    path: '/surprise/$eventId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -73,6 +80,7 @@ export interface FileRoutesByFullPath {
   '/love': typeof AuthenticatedLoveRoute
   '/memories': typeof AuthenticatedMemoriesRoute
   '/watch': typeof AuthenticatedWatchRoute
+  '/surprise/$eventId': typeof AuthenticatedSurpriseEventIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -83,6 +91,7 @@ export interface FileRoutesByTo {
   '/love': typeof AuthenticatedLoveRoute
   '/memories': typeof AuthenticatedMemoriesRoute
   '/watch': typeof AuthenticatedWatchRoute
+  '/surprise/$eventId': typeof AuthenticatedSurpriseEventIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -95,6 +104,7 @@ export interface FileRoutesById {
   '/_authenticated/love': typeof AuthenticatedLoveRoute
   '/_authenticated/memories': typeof AuthenticatedMemoriesRoute
   '/_authenticated/watch': typeof AuthenticatedWatchRoute
+  '/_authenticated/surprise/$eventId': typeof AuthenticatedSurpriseEventIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -107,6 +117,7 @@ export interface FileRouteTypes {
     | '/love'
     | '/memories'
     | '/watch'
+    | '/surprise/$eventId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -117,6 +128,7 @@ export interface FileRouteTypes {
     | '/love'
     | '/memories'
     | '/watch'
+    | '/surprise/$eventId'
   id:
     | '__root__'
     | '/'
@@ -128,6 +140,7 @@ export interface FileRouteTypes {
     | '/_authenticated/love'
     | '/_authenticated/memories'
     | '/_authenticated/watch'
+    | '/_authenticated/surprise/$eventId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -201,6 +214,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/surprise/$eventId': {
+      id: '/_authenticated/surprise/$eventId'
+      path: '/surprise/$eventId'
+      fullPath: '/surprise/$eventId'
+      preLoaderRoute: typeof AuthenticatedSurpriseEventIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -211,6 +231,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLoveRoute: typeof AuthenticatedLoveRoute
   AuthenticatedMemoriesRoute: typeof AuthenticatedMemoriesRoute
   AuthenticatedWatchRoute: typeof AuthenticatedWatchRoute
+  AuthenticatedSurpriseEventIdRoute: typeof AuthenticatedSurpriseEventIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -220,6 +241,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLoveRoute: AuthenticatedLoveRoute,
   AuthenticatedMemoriesRoute: AuthenticatedMemoriesRoute,
   AuthenticatedWatchRoute: AuthenticatedWatchRoute,
+  AuthenticatedSurpriseEventIdRoute: AuthenticatedSurpriseEventIdRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
