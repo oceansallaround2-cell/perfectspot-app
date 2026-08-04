@@ -49,6 +49,7 @@ const NAV = [
   { to: "/dates", label: "Dates", icon: Calendar },
   { to: "/journal", label: "Journal", icon: BookHeart },
   { to: "/watch", label: "Watch", icon: Tv },
+  { to: "/planner", label: "Planner", icon: PartyPopper },
 ] as const;
 
 function AuthedLayout() {
