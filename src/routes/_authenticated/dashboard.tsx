@@ -65,6 +65,25 @@ function Dashboard() {
 
   return (
     <div className="space-y-6">
+      {surprise && (
+        <Link
+          to="/surprise/$eventId"
+          params={{ eventId: surprise.id }}
+          search={{}}
+          className="animate-fade-up flex items-center justify-between rounded-3xl border border-primary/40 p-4"
+          style={{ background: "var(--gradient-primary)", boxShadow: "0 0 45px -10px rgba(138,95,201,0.8)" }}
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">{surpriseMeta(surprise.event_type).emoji}</span>
+            <div>
+              <div className="font-serif text-lg text-primary-foreground">{surprise.title}</div>
+              <div className="text-[11px] text-primary-foreground/80">Your surprise is waiting</div>
+            </div>
+          </div>
+          <span className="text-sm text-primary-foreground">Continue →</span>
+        </Link>
+      )}
+
       <section className="animate-fade-up glass-card p-6">
         <p className="text-xs uppercase tracking-widest text-muted-foreground">Welcome back</p>
         <h1 className="mt-1 font-serif text-4xl">
