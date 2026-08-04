@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight, Image as ImageIcon, Send, Calendar, BookHeart, Heart } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
+import { surpriseMeta } from "@/lib/surprise";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
@@ -13,8 +14,22 @@ interface Profile { display_name: string; partner_name: string; }
 function Dashboard() {
   const { user } = Route.useRouteContext();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [surprise, setSurprise] = useState<{ id: string; title: string; event_type: string } | null>(null);
   const [counts, setCounts] = useState({ memories: 0, messages: 0, dates: 0, entries: 0 });
   const [daysTogether, setDaysTogether] = useState<number | null>(null);
+
+  useEffect(() => {
+    const nowIso = new Date().toISOString();
+    supabase
+      .from("surprise_events")
+      .select("id,title,event_type")
+      .lte("start_at", nowIso)
+      .gte("end_at", nowIso)
+      .order("start_at", { ascending: false })
+      .limit(1)
+      .then(({ data }) => setSurprise(data?.[0] ?? null));
+  }, [user.id]);
+
 
   useEffect(() => {
     (async () => {
@@ -50,6 +65,25 @@ function Dashboard() {
 
   return (
     <div className="space-y-6">
+      {surprise && (
+        <Link
+          to="/surprise/$eventId"
+          params={{ eventId: surprise.id }}
+          search={{}}
+          className="animate-fade-up flex items-center justify-between rounded-3xl border border-primary/40 p-4"
+          style={{ background: "var(--gradient-primary)", boxShadow: "0 0 45px -10px rgba(138,95,201,0.8)" }}
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">{surpriseMeta(surprise.event_type).emoji}</span>
+            <div>
+              <div className="font-serif text-lg text-primary-foreground">{surprise.title}</div>
+              <div className="text-[11px] text-primary-foreground/80">Your surprise is waiting</div>
+            </div>
+          </div>
+          <span className="text-sm text-primary-foreground">Continue →</span>
+        </Link>
+      )}
+
       <section className="animate-fade-up glass-card p-6">
         <p className="text-xs uppercase tracking-widest text-muted-foreground">Welcome back</p>
         <h1 className="mt-1 font-serif text-4xl">

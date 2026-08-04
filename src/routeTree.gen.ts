@@ -13,11 +13,13 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedWatchRouteImport } from './routes/_authenticated/watch'
+import { Route as AuthenticatedPlannerRouteImport } from './routes/_authenticated/planner'
 import { Route as AuthenticatedMemoriesRouteImport } from './routes/_authenticated/memories'
 import { Route as AuthenticatedLoveRouteImport } from './routes/_authenticated/love'
 import { Route as AuthenticatedJournalRouteImport } from './routes/_authenticated/journal'
 import { Route as AuthenticatedDatesRouteImport } from './routes/_authenticated/dates'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedSurpriseEventIdRouteImport } from './routes/_authenticated/surprise.$eventId'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -36,6 +38,11 @@ const IndexRoute = IndexRouteImport.update({
 const AuthenticatedWatchRoute = AuthenticatedWatchRouteImport.update({
   id: '/watch',
   path: '/watch',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPlannerRoute = AuthenticatedPlannerRouteImport.update({
+  id: '/planner',
+  path: '/planner',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMemoriesRoute = AuthenticatedMemoriesRouteImport.update({
@@ -63,6 +70,12 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSurpriseEventIdRoute =
+  AuthenticatedSurpriseEventIdRouteImport.update({
+    id: '/surprise/$eventId',
+    path: '/surprise/$eventId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -72,7 +85,9 @@ export interface FileRoutesByFullPath {
   '/journal': typeof AuthenticatedJournalRoute
   '/love': typeof AuthenticatedLoveRoute
   '/memories': typeof AuthenticatedMemoriesRoute
+  '/planner': typeof AuthenticatedPlannerRoute
   '/watch': typeof AuthenticatedWatchRoute
+  '/surprise/$eventId': typeof AuthenticatedSurpriseEventIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -82,7 +97,9 @@ export interface FileRoutesByTo {
   '/journal': typeof AuthenticatedJournalRoute
   '/love': typeof AuthenticatedLoveRoute
   '/memories': typeof AuthenticatedMemoriesRoute
+  '/planner': typeof AuthenticatedPlannerRoute
   '/watch': typeof AuthenticatedWatchRoute
+  '/surprise/$eventId': typeof AuthenticatedSurpriseEventIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -94,7 +111,9 @@ export interface FileRoutesById {
   '/_authenticated/journal': typeof AuthenticatedJournalRoute
   '/_authenticated/love': typeof AuthenticatedLoveRoute
   '/_authenticated/memories': typeof AuthenticatedMemoriesRoute
+  '/_authenticated/planner': typeof AuthenticatedPlannerRoute
   '/_authenticated/watch': typeof AuthenticatedWatchRoute
+  '/_authenticated/surprise/$eventId': typeof AuthenticatedSurpriseEventIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -106,7 +125,9 @@ export interface FileRouteTypes {
     | '/journal'
     | '/love'
     | '/memories'
+    | '/planner'
     | '/watch'
+    | '/surprise/$eventId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -116,7 +137,9 @@ export interface FileRouteTypes {
     | '/journal'
     | '/love'
     | '/memories'
+    | '/planner'
     | '/watch'
+    | '/surprise/$eventId'
   id:
     | '__root__'
     | '/'
@@ -127,7 +150,9 @@ export interface FileRouteTypes {
     | '/_authenticated/journal'
     | '/_authenticated/love'
     | '/_authenticated/memories'
+    | '/_authenticated/planner'
     | '/_authenticated/watch'
+    | '/_authenticated/surprise/$eventId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -166,6 +191,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedWatchRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/planner': {
+      id: '/_authenticated/planner'
+      path: '/planner'
+      fullPath: '/planner'
+      preLoaderRoute: typeof AuthenticatedPlannerRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/memories': {
       id: '/_authenticated/memories'
       path: '/memories'
@@ -201,6 +233,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/surprise/$eventId': {
+      id: '/_authenticated/surprise/$eventId'
+      path: '/surprise/$eventId'
+      fullPath: '/surprise/$eventId'
+      preLoaderRoute: typeof AuthenticatedSurpriseEventIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -210,7 +249,9 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedJournalRoute: typeof AuthenticatedJournalRoute
   AuthenticatedLoveRoute: typeof AuthenticatedLoveRoute
   AuthenticatedMemoriesRoute: typeof AuthenticatedMemoriesRoute
+  AuthenticatedPlannerRoute: typeof AuthenticatedPlannerRoute
   AuthenticatedWatchRoute: typeof AuthenticatedWatchRoute
+  AuthenticatedSurpriseEventIdRoute: typeof AuthenticatedSurpriseEventIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -219,7 +260,9 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedJournalRoute: AuthenticatedJournalRoute,
   AuthenticatedLoveRoute: AuthenticatedLoveRoute,
   AuthenticatedMemoriesRoute: AuthenticatedMemoriesRoute,
+  AuthenticatedPlannerRoute: AuthenticatedPlannerRoute,
   AuthenticatedWatchRoute: AuthenticatedWatchRoute,
+  AuthenticatedSurpriseEventIdRoute: AuthenticatedSurpriseEventIdRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

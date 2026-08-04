@@ -219,3 +219,30 @@ button:not(:disabled):active { transform: scale(0.97); }
 
 
 
+
+/* ---- Secret Event Planner surprise experience ---- */
+@keyframes ps-twinkle {
+  0%, 100% { opacity: 0.15; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+@keyframes ps-flicker {
+  0%, 100% { transform: scaleY(1) scaleX(1); opacity: 1; }
+  35% { transform: scaleY(1.12) scaleX(0.94) translateX(1px); opacity: 0.92; }
+  70% { transform: scaleY(0.94) scaleX(1.06) translateX(-1px); opacity: 0.97; }
+}
+@keyframes ps-smoke {
+  0% { opacity: 0.7; transform: translate(-50%, 0) scale(0.7); }
+  100% { opacity: 0; transform: translate(-50%, -40px) scale(1.4); }
+}
+@keyframes ps-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+@keyframes ps-kenburns {
+  0% { transform: scale(1.12) translate(2%, 1%); }
+  100% { transform: scale(1) translate(0, 0); }
+}
+@keyframes ps-pulse-glow {
+  0%, 100% { box-shadow: 0 0 60px 12px rgba(138, 95, 201, 0.35); }
+  50% { box-shadow: 0 0 90px 26px rgba(138, 95, 201, 0.6); }
+}

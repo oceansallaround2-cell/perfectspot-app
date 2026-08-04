@@ -254,6 +254,179 @@ export type Database = {
         }
         Relationships: []
       }
+      surprise_events: {
+        Row: {
+          created_at: string
+          creator_id: string
+          end_at: string
+          event_type: string
+          id: string
+          music_path: string | null
+          recipient_id: string
+          start_at: string
+          title: string
+          updated_at: string
+          voice_path: string | null
+        }
+        Insert: {
+          created_at?: string
+          creator_id: string
+          end_at: string
+          event_type?: string
+          id?: string
+          music_path?: string | null
+          recipient_id: string
+          start_at: string
+          title: string
+          updated_at?: string
+          voice_path?: string | null
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string
+          end_at?: string
+          event_type?: string
+          id?: string
+          music_path?: string | null
+          recipient_id?: string
+          start_at?: string
+          title?: string
+          updated_at?: string
+          voice_path?: string | null
+        }
+        Relationships: []
+      }
+      surprise_messages: {
+        Row: {
+          content: string
+          created_at: string
+          event_id: string
+          id: string
+          position: number
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          event_id: string
+          id?: string
+          position?: number
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          event_id?: string
+          id?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "surprise_messages_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "surprise_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      surprise_photos: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          position: number
+          storage_path: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          position?: number
+          storage_path: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          position?: number
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "surprise_photos_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "surprise_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      surprise_progress: {
+        Row: {
+          completed: boolean
+          event_id: string
+          id: string
+          opened_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          event_id: string
+          id?: string
+          opened_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          event_id?: string
+          id?: string
+          opened_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "surprise_progress_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "surprise_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      surprise_wishes: {
+        Row: {
+          author_id: string
+          created_at: string
+          event_id: string
+          id: string
+          wish: string
+        }
+        Insert: {
+          author_id: string
+          created_at?: string
+          event_id: string
+          id?: string
+          wish: string
+        }
+        Update: {
+          author_id?: string
+          created_at?: string
+          event_id?: string
+          id?: string
+          wish?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "surprise_wishes_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "surprise_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       watch_messages: {
         Row: {
           audio_path: string | null
@@ -365,7 +538,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      can_view_surprise: { Args: { _event_id: string }; Returns: boolean }
+      is_surprise_creator: { Args: { _event_id: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
