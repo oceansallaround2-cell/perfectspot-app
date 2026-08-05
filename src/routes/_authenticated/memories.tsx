@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Upload, X, Search, Filter, Trash2, Play, Loader2, Image as ImageIcon, Lock, Pencil, Check } from "lucide-react";
 import { toast } from "sonner";
 
+import { compressImage } from "@/lib/media";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -108,16 +109,18 @@ function MemoriesPage({ onLock }: { onLock: () => void }) {
     setUploading(true);
     setProgress(10);
     try {
-      const ext = pending.name.split(".").pop() ?? "bin";
+      // Photos are compressed client-side; videos are uploaded untouched.
+      const upload = await compressImage(pending);
+      const ext = upload.name.split(".").pop() ?? "bin";
       const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("memories").upload(path, pending, {
-        contentType: pending.type,
+      const { error: upErr } = await supabase.storage.from("memories").upload(path, upload, {
+        contentType: upload.type,
         upsert: false,
       });
       if (upErr) throw upErr;
       setProgress(70);
       const { data: pub } = supabase.storage.from("memories").getPublicUrl(path);
-      const mediaType = pending.type.startsWith("video") ? "video" : "photo";
+      const mediaType = upload.type.startsWith("video") ? "video" : "photo";
       const { error: insErr } = await supabase.from("memories").insert({
         uploader_id: user.id,
         media_url: pub.publicUrl,
