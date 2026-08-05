@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_music: {
+        Row: {
+          created_at: string
+          id: string
+          storage_path: string
+          title: string
+          uploader_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          storage_path: string
+          title: string
+          uploader_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          storage_path?: string
+          title?: string
+          uploader_id?: string
+        }
+        Relationships: []
+      }
       important_dates: {
         Row: {
           created_at: string

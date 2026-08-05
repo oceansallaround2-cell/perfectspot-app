@@ -6,7 +6,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { accountByEmail } from "@/lib/accounts";
 import { NotificationCenter } from "@/components/NotificationCenter";
+import { GlobalMusicButton, GlobalMusicProvider } from "@/components/GlobalMusic";
 import { enablePush, pushSupported } from "@/lib/notifications";
+
 
 /** Premium tap ripple on every button in the app. */
 function useGlobalRipple() {
@@ -130,6 +132,7 @@ function AuthedLayout() {
   }
 
   return (
+    <GlobalMusicProvider>
     <div className="min-h-screen pb-28">
       <header className="sticky top-0 z-40 border-b border-border/40 backdrop-blur-xl" style={{ background: "color-mix(in oklab, var(--background) 75%, transparent)" }}>
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
@@ -143,6 +146,7 @@ function AuthedLayout() {
             </div>
           </Link>
           <div className="flex items-center gap-1">
+            <GlobalMusicButton userId={user.id} />
             <NotificationCenter userId={user.id} />
             <Button variant="ghost" size="icon" onClick={signOut} className="rounded-full text-muted-foreground hover:text-primary">
               <LogOut className="h-4 w-4" />
@@ -173,5 +177,6 @@ function AuthedLayout() {
         })}
       </nav>
     </div>
+    </GlobalMusicProvider>
   );
 }

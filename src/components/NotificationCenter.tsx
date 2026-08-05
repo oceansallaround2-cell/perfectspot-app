@@ -73,7 +73,14 @@ export function NotificationCenter({ userId }: { userId: string }) {
       setItems((prev) => prev.map((i) => (i.id === n.id ? { ...i, is_read: true } : i)));
       await supabase.from("notifications").update({ is_read: true }).eq("id", n.id);
     }
-    if (n.link) navigate({ to: n.link });
+    if (n.link) {
+      // Links may carry a query string (e.g. deep-linking straight to the canvas),
+      // which TanStack Router expects as a parsed search object.
+      const [path, query] = n.link.split("?");
+      const search = Object.fromEntries(new URLSearchParams(query ?? ""));
+      navigate({ to: path!, search });
+    }
+
   }
 
   async function clearAll() {

@@ -26,6 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { getPartnerId, notifyPartner } from "@/lib/notifications";
+import { compressImage } from "@/lib/media";
 import {
   SURPRISE_TYPES,
   eventPhase,
@@ -463,7 +464,9 @@ function PrepareDialog({ event, userId, onClose }: { event: SurpriseEvent; userI
     let position = photos.length;
     for (const file of Array.from(files).slice(0, room)) {
       try {
-        const path = await uploadSurpriseFile(ev.id, "photos", file, fileExt(file, "jpg"));
+        // Compress before upload so the slideshow loads instantly later.
+        const optimised = await compressImage(file);
+        const path = await uploadSurpriseFile(ev.id, "photos", optimised, fileExt(optimised, "jpg"));
         await supabase.from("surprise_photos").insert({ event_id: ev.id, storage_path: path, position });
         position += 1;
       } catch {

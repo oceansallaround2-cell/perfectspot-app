@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Loader2, Mic, Volume2, VolumeX, SkipForward, Play, Pause } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Mic, Volume2, VolumeX, SkipForward, Wind } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,8 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Confetti, StarField } from "@/components/surprise/Effects";
 import { Cake } from "@/components/surprise/Cake";
 import { SharedCanvas } from "@/components/surprise/SharedCanvas";
+import { AudioPlayer } from "@/components/AudioPlayer";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useGlobalMusic } from "@/components/GlobalMusic";
+import { preloadImages, signedUrls } from "@/lib/media";
 import { notifyPartner } from "@/lib/notifications";
 import {
+  SURPRISE_BUCKET,
   surpriseMeta,
   surpriseUrl,
   type SurpriseEvent,
@@ -46,6 +51,14 @@ function SurpriseExperience() {
   const [burst, setBurst] = useState(0);
 
   const musicRef = useRef<HTMLAudioElement | null>(null);
+  const globalMusic = useGlobalMusic();
+
+  // The surprise brings its own soundtrack — fade the app-wide one out.
+  useEffect(() => {
+    globalMusic?.duck();
+    return () => globalMusic?.unduck();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,10 +80,13 @@ function SurpriseExperience() {
         if (cancelled) return;
         setMusicUrl(m);
         setVoiceUrl(v);
-        const entries = await Promise.all(
-          ((ph as SurprisePhoto[]) ?? []).map(async (p) => [p.id, (await surpriseUrl(p.storage_path)) ?? ""] as const),
-        );
-        if (!cancelled) setPhotoUrls(Object.fromEntries(entries));
+        const list = (ph as SurprisePhoto[]) ?? [];
+        const byPath = await signedUrls(SURPRISE_BUCKET, list.map((p) => p.storage_path));
+        const byId = Object.fromEntries(list.map((p) => [p.id, byPath[p.storage_path] ?? ""]));
+        if (!cancelled) {
+          setPhotoUrls(byId);
+          preloadImages(Object.values(byId));
+        }
         // Mark as opened so the experience doesn't hijack the app again.
         await supabase
           .from("surprise_progress")
@@ -129,8 +145,17 @@ function SurpriseExperience() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      <div
+        className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 px-8"
+        style={{ background: "linear-gradient(180deg,#0B0714 0%,#171321 45%,#221A35 100%)" }}
+      >
+        <Skeleton className="h-16 w-16 rounded-full" />
+        <Skeleton className="h-10 w-64 rounded-full" />
+        <Skeleton className="h-4 w-40 rounded-full" />
+        <Skeleton className="h-11 w-36 rounded-full" />
+        <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Setting the mood…
+        </p>
       </div>
     );
   }
@@ -363,7 +388,7 @@ function CandleStage({ onBlown }: { onBlown: () => void }) {
         };
         raf = requestAnimationFrame(tick);
       } catch {
-        setMicError("Microphone unavailable — tap the candle instead.");
+        setMicError("Microphone unavailable — use the button below instead.");
       }
     })();
 
@@ -380,10 +405,15 @@ function CandleStage({ onBlown }: { onBlown: () => void }) {
       <button onClick={extinguish} aria-label="Blow out the candle">
         <Cake lit={lit} />
       </button>
-      <h2 className="font-serif text-3xl">Blow on the candle</h2>
+      <h2 className="font-serif text-3xl">{lit ? "Blow out the candle" : "Beautiful ✨"}</h2>
+
+      <Button size="lg" className="rounded-full px-10" onClick={extinguish} disabled={!lit}>
+        <Wind className="mr-2 h-4 w-4" /> Blow the candle
+      </Button>
+
       <p className="flex items-center gap-2 text-xs text-muted-foreground">
         <Mic className="h-3.5 w-3.5" />
-        {micError ?? (listening ? "Listening… blow softly into your mic" : "Allow the microphone to blow it out")}
+        {micError ?? (listening ? "Or blow softly into your mic — I'm listening" : "Tap the button, or blow into your mic")}
       </p>
       <button className="text-xs text-muted-foreground underline-offset-4 hover:underline" onClick={extinguish}>
         Skip
@@ -393,36 +423,14 @@ function CandleStage({ onBlown }: { onBlown: () => void }) {
 }
 
 function VoiceStage({ url, onStart, onDone }: { url: string | null; onStart: () => void; onDone: () => void }) {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
 
   useEffect(() => {
-    if (!url) {
-      onDone();
-      return;
-    }
-    const audio = new Audio(url);
-    audioRef.current = audio;
-    onStart();
-    audio.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
-    audio.onended = () => onDone();
-    return () => {
-      audio.pause();
-      audioRef.current = null;
-    };
+    if (!url) onDone();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);
 
-  function toggle() {
-    const audio = audioRef.current;
-    if (!audio) return;
-    if (audio.paused) {
-      audio.play().then(() => setPlaying(true)).catch(() => {});
-    } else {
-      audio.pause();
-      setPlaying(false);
-    }
-  }
+  if (!url) return null;
 
   return (
     <div className="animate-fade-up flex flex-col items-center gap-6">
@@ -437,14 +445,23 @@ function VoiceStage({ url, onStart, onDone }: { url: string | null; onStart: () 
         <Mic className="h-10 w-10 text-primary-foreground" />
       </div>
       <h2 className="font-serif text-3xl">A message for you</h2>
-      <div className="flex items-center gap-3">
-        <Button size="icon" className="rounded-full" onClick={toggle}>
-          {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-        </Button>
-        <Button variant="ghost" className="rounded-full text-muted-foreground" onClick={onDone}>
-          <SkipForward className="mr-1.5 h-3.5 w-3.5" /> Skip
-        </Button>
-      </div>
+
+      <AudioPlayer
+        url={url}
+        autoPlay
+        onStart={() => {
+          setPlaying(true);
+          onStart();
+        }}
+        onEnded={() => {
+          setPlaying(false);
+          onDone();
+        }}
+      />
+
+      <Button variant="ghost" className="rounded-full text-muted-foreground" onClick={onDone}>
+        <SkipForward className="mr-1.5 h-3.5 w-3.5" /> Skip
+      </Button>
     </div>
   );
 }
@@ -467,7 +484,8 @@ function AlbumStage({
     const max = Math.max(photos.length, notes.length);
     for (let i = 0; i < max; i += 1) {
       const p = photos[i];
-      if (p && urls[p.id]) out.push({ kind: "photo", url: urls[p.id]!, id: p.id });
+      // Keep the photo in the deck even if its URL is still resolving.
+      if (p) out.push({ kind: "photo", url: urls[p.id] ?? "", id: p.id });
       const n = notes[i];
       if (n) out.push({ kind: "note", text: n.content, id: n.id });
     }
@@ -475,29 +493,38 @@ function AlbumStage({
   }, [photos, notes, urls]);
 
   const [i, setI] = useState(0);
+  const [loaded, setLoaded] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    if (slides.length === 0) onDone();
+    if (photos.length === 0 && notes.length === 0) onDone();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slides.length]);
+  }, [photos.length, notes.length]);
 
   const slide = slides[i];
   if (!slide) return null;
+
+  const atEnd = i === slides.length - 1;
 
   return (
     <div className="flex w-full max-w-md flex-col items-center gap-5">
       <div key={slide.id} className="animate-fade-up w-full">
         {slide.kind === "photo" ? (
           <div
-            className="overflow-hidden rounded-[2rem] border border-border/40"
+            className="relative overflow-hidden rounded-[2rem] border border-border/40"
             style={{ boxShadow: "0 30px 90px -30px rgba(138,95,201,0.7)" }}
           >
-            <img
-              src={slide.url}
-              alt="A memory"
-              className="h-[52vh] w-full object-cover"
-              style={{ animation: "ps-kenburns 9s ease-out both" }}
-            />
+            {!loaded[slide.id] && <Skeleton className="h-[52vh] w-full rounded-[2rem]" />}
+            {slide.url && (
+              <img
+                src={slide.url}
+                alt="A memory"
+                loading="eager"
+                decoding="async"
+                onLoad={() => setLoaded((m) => ({ ...m, [slide.id]: true }))}
+                className={`h-[52vh] w-full object-cover transition-opacity duration-700 ${loaded[slide.id] ? "opacity-100" : "absolute inset-0 opacity-0"}`}
+                style={loaded[slide.id] ? { animation: "ps-kenburns 9s ease-out both" } : undefined}
+              />
+            )}
           </div>
         ) : (
           <p className="gradient-text px-4 font-serif text-3xl leading-snug" style={{ animation: "ps-float 4s ease-in-out infinite" }}>
@@ -507,7 +534,14 @@ function AlbumStage({
       </div>
 
       <div className="flex items-center gap-3">
-        <Button size="icon" variant="ghost" className="rounded-full" onClick={() => setI((v) => Math.max(0, v - 1))} disabled={i === 0}>
+        <Button
+          size="icon"
+          variant="secondary"
+          className="rounded-full"
+          onClick={() => setI((v) => Math.max(0, v - 1))}
+          disabled={i === 0}
+          aria-label="Previous"
+        >
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
@@ -516,11 +550,13 @@ function AlbumStage({
         <Button
           size="icon"
           className="rounded-full"
-          onClick={() => (i === slides.length - 1 ? onDone() : setI((v) => v + 1))}
+          onClick={() => (atEnd ? onDone() : setI((v) => v + 1))}
+          aria-label="Next"
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
+
       <button className="text-xs text-muted-foreground underline-offset-4 hover:underline" onClick={onDone}>
         Skip to the canvas
       </button>

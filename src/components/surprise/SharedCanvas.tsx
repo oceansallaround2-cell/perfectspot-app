@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Eraser, Pencil, Redo2, Trash2, Undo2, LogOut, Loader2 } from "lucide-react";
+import { Eraser, Pencil, Redo2, Trash2, Undo2, LogOut, Loader2, Users } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,7 @@ export function SharedCanvas({
   const redoRef = useRef<Stroke[]>([]);
   const [, forceRender] = useState(0);
   const [partnerHere, setPartnerHere] = useState(false);
+  const partnerSeenRef = useRef(false);
   const [color, setColor] = useState(PALETTE[1]!);
   const [size, setSize] = useState(4);
   const [erase, setErase] = useState(false);
@@ -116,6 +117,7 @@ export function SharedCanvas({
       .on("presence", { event: "sync" }, () => {
         const state = channel.presenceState();
         const others = Object.keys(state).filter((k) => k !== userId);
+        if (others.length > 0) partnerSeenRef.current = true;
         setPartnerHere(others.length > 0);
       })
       .on("presence", { event: "join" }, ({ key }) => {
@@ -141,7 +143,6 @@ export function SharedCanvas({
   }
 
   function down(e: React.PointerEvent<HTMLCanvasElement>) {
-    if (!partnerHere) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     currentRef.current = {
       id: crypto.randomUUID(),
@@ -200,7 +201,10 @@ export function SharedCanvas({
   }
 
   function leave() {
-    channelRef.current?.send({ type: "broadcast", event: "leave", payload: {} });
+    // Only end the session for both of us if we were actually drawing together.
+    if (partnerHere || partnerSeenRef.current) {
+      channelRef.current?.send({ type: "broadcast", event: "leave", payload: {} });
+    }
     onLeave();
   }
 
@@ -215,15 +219,22 @@ export function SharedCanvas({
         onPointerCancel={up}
       />
 
-      {!partnerHere && (
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 bg-[#07050C]/80 backdrop-blur-sm">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="font-serif text-2xl text-foreground">Waiting for your partner…</p>
-          <p className="max-w-xs text-center text-xs text-muted-foreground">
-            They&apos;ve been notified. The canvas unlocks the moment they join you here.
-          </p>
-        </div>
-      )}
+      <div
+        className="pointer-events-none absolute left-3 top-3 z-20 flex items-center gap-2 rounded-full border border-border/50 px-3 py-1.5 text-xs"
+        style={{ background: "color-mix(in oklab, var(--card) 85%, transparent)", backdropFilter: "blur(16px)" }}
+      >
+        {partnerHere ? (
+          <>
+            <Users className="h-3.5 w-3.5 text-primary" />
+            <span className="text-foreground">You&apos;re drawing together</span>
+          </>
+        ) : (
+          <>
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+            <span className="text-muted-foreground">Waiting for your partner — draw anyway 💜</span>
+          </>
+        )}
+      </div>
 
       <div className="absolute right-3 top-3 z-30">
         <ConfirmDialog
