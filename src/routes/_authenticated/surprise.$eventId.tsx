@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Loader2, Mic, Volume2, VolumeX, SkipForward, Play, Pause } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Mic, Volume2, VolumeX, SkipForward, Wind } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,8 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Confetti, StarField } from "@/components/surprise/Effects";
 import { Cake } from "@/components/surprise/Cake";
 import { SharedCanvas } from "@/components/surprise/SharedCanvas";
+import { AudioPlayer } from "@/components/AudioPlayer";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useGlobalMusic } from "@/components/GlobalMusic";
+import { preloadImages, signedUrls } from "@/lib/media";
 import { notifyPartner } from "@/lib/notifications";
 import {
+  SURPRISE_BUCKET,
   surpriseMeta,
   surpriseUrl,
   type SurpriseEvent,
@@ -46,6 +51,14 @@ function SurpriseExperience() {
   const [burst, setBurst] = useState(0);
 
   const musicRef = useRef<HTMLAudioElement | null>(null);
+  const globalMusic = useGlobalMusic();
+
+  // The surprise brings its own soundtrack — fade the app-wide one out.
+  useEffect(() => {
+    globalMusic?.duck();
+    return () => globalMusic?.unduck();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,10 +80,13 @@ function SurpriseExperience() {
         if (cancelled) return;
         setMusicUrl(m);
         setVoiceUrl(v);
-        const entries = await Promise.all(
-          ((ph as SurprisePhoto[]) ?? []).map(async (p) => [p.id, (await surpriseUrl(p.storage_path)) ?? ""] as const),
-        );
-        if (!cancelled) setPhotoUrls(Object.fromEntries(entries));
+        const list = (ph as SurprisePhoto[]) ?? [];
+        const byPath = await signedUrls(SURPRISE_BUCKET, list.map((p) => p.storage_path));
+        const byId = Object.fromEntries(list.map((p) => [p.id, byPath[p.storage_path] ?? ""]));
+        if (!cancelled) {
+          setPhotoUrls(byId);
+          preloadImages(Object.values(byId));
+        }
         // Mark as opened so the experience doesn't hijack the app again.
         await supabase
           .from("surprise_progress")
@@ -129,8 +145,17 @@ function SurpriseExperience() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      <div
+        className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 px-8"
+        style={{ background: "linear-gradient(180deg,#0B0714 0%,#171321 45%,#221A35 100%)" }}
+      >
+        <Skeleton className="h-16 w-16 rounded-full" />
+        <Skeleton className="h-10 w-64 rounded-full" />
+        <Skeleton className="h-4 w-40 rounded-full" />
+        <Skeleton className="h-11 w-36 rounded-full" />
+        <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Setting the mood…
+        </p>
       </div>
     );
   }
