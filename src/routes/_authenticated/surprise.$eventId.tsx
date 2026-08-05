@@ -484,7 +484,8 @@ function AlbumStage({
     const max = Math.max(photos.length, notes.length);
     for (let i = 0; i < max; i += 1) {
       const p = photos[i];
-      if (p && urls[p.id]) out.push({ kind: "photo", url: urls[p.id]!, id: p.id });
+      // Keep the photo in the deck even if its URL is still resolving.
+      if (p) out.push({ kind: "photo", url: urls[p.id] ?? "", id: p.id });
       const n = notes[i];
       if (n) out.push({ kind: "note", text: n.content, id: n.id });
     }
@@ -492,29 +493,38 @@ function AlbumStage({
   }, [photos, notes, urls]);
 
   const [i, setI] = useState(0);
+  const [loaded, setLoaded] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    if (slides.length === 0) onDone();
+    if (photos.length === 0 && notes.length === 0) onDone();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slides.length]);
+  }, [photos.length, notes.length]);
 
   const slide = slides[i];
   if (!slide) return null;
+
+  const atEnd = i === slides.length - 1;
 
   return (
     <div className="flex w-full max-w-md flex-col items-center gap-5">
       <div key={slide.id} className="animate-fade-up w-full">
         {slide.kind === "photo" ? (
           <div
-            className="overflow-hidden rounded-[2rem] border border-border/40"
+            className="relative overflow-hidden rounded-[2rem] border border-border/40"
             style={{ boxShadow: "0 30px 90px -30px rgba(138,95,201,0.7)" }}
           >
-            <img
-              src={slide.url}
-              alt="A memory"
-              className="h-[52vh] w-full object-cover"
-              style={{ animation: "ps-kenburns 9s ease-out both" }}
-            />
+            {!loaded[slide.id] && <Skeleton className="h-[52vh] w-full rounded-[2rem]" />}
+            {slide.url && (
+              <img
+                src={slide.url}
+                alt="A memory"
+                loading="eager"
+                decoding="async"
+                onLoad={() => setLoaded((m) => ({ ...m, [slide.id]: true }))}
+                className={`h-[52vh] w-full object-cover transition-opacity duration-700 ${loaded[slide.id] ? "opacity-100" : "absolute inset-0 opacity-0"}`}
+                style={loaded[slide.id] ? { animation: "ps-kenburns 9s ease-out both" } : undefined}
+              />
+            )}
           </div>
         ) : (
           <p className="gradient-text px-4 font-serif text-3xl leading-snug" style={{ animation: "ps-float 4s ease-in-out infinite" }}>
@@ -524,7 +534,14 @@ function AlbumStage({
       </div>
 
       <div className="flex items-center gap-3">
-        <Button size="icon" variant="ghost" className="rounded-full" onClick={() => setI((v) => Math.max(0, v - 1))} disabled={i === 0}>
+        <Button
+          size="icon"
+          variant="secondary"
+          className="rounded-full"
+          onClick={() => setI((v) => Math.max(0, v - 1))}
+          disabled={i === 0}
+          aria-label="Previous"
+        >
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
@@ -533,11 +550,13 @@ function AlbumStage({
         <Button
           size="icon"
           className="rounded-full"
-          onClick={() => (i === slides.length - 1 ? onDone() : setI((v) => v + 1))}
+          onClick={() => (atEnd ? onDone() : setI((v) => v + 1))}
+          aria-label="Next"
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
+
       <button className="text-xs text-muted-foreground underline-offset-4 hover:underline" onClick={onDone}>
         Skip to the canvas
       </button>
