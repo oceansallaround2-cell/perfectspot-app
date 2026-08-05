@@ -388,7 +388,7 @@ function CandleStage({ onBlown }: { onBlown: () => void }) {
         };
         raf = requestAnimationFrame(tick);
       } catch {
-        setMicError("Microphone unavailable — tap the candle instead.");
+        setMicError("Microphone unavailable — use the button below instead.");
       }
     })();
 
@@ -405,10 +405,15 @@ function CandleStage({ onBlown }: { onBlown: () => void }) {
       <button onClick={extinguish} aria-label="Blow out the candle">
         <Cake lit={lit} />
       </button>
-      <h2 className="font-serif text-3xl">Blow on the candle</h2>
+      <h2 className="font-serif text-3xl">{lit ? "Blow out the candle" : "Beautiful ✨"}</h2>
+
+      <Button size="lg" className="rounded-full px-10" onClick={extinguish} disabled={!lit}>
+        <Wind className="mr-2 h-4 w-4" /> Blow the candle
+      </Button>
+
       <p className="flex items-center gap-2 text-xs text-muted-foreground">
         <Mic className="h-3.5 w-3.5" />
-        {micError ?? (listening ? "Listening… blow softly into your mic" : "Allow the microphone to blow it out")}
+        {micError ?? (listening ? "Or blow softly into your mic — I'm listening" : "Tap the button, or blow into your mic")}
       </p>
       <button className="text-xs text-muted-foreground underline-offset-4 hover:underline" onClick={extinguish}>
         Skip
@@ -418,36 +423,14 @@ function CandleStage({ onBlown }: { onBlown: () => void }) {
 }
 
 function VoiceStage({ url, onStart, onDone }: { url: string | null; onStart: () => void; onDone: () => void }) {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
 
   useEffect(() => {
-    if (!url) {
-      onDone();
-      return;
-    }
-    const audio = new Audio(url);
-    audioRef.current = audio;
-    onStart();
-    audio.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
-    audio.onended = () => onDone();
-    return () => {
-      audio.pause();
-      audioRef.current = null;
-    };
+    if (!url) onDone();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);
 
-  function toggle() {
-    const audio = audioRef.current;
-    if (!audio) return;
-    if (audio.paused) {
-      audio.play().then(() => setPlaying(true)).catch(() => {});
-    } else {
-      audio.pause();
-      setPlaying(false);
-    }
-  }
+  if (!url) return null;
 
   return (
     <div className="animate-fade-up flex flex-col items-center gap-6">
@@ -462,14 +445,23 @@ function VoiceStage({ url, onStart, onDone }: { url: string | null; onStart: () 
         <Mic className="h-10 w-10 text-primary-foreground" />
       </div>
       <h2 className="font-serif text-3xl">A message for you</h2>
-      <div className="flex items-center gap-3">
-        <Button size="icon" className="rounded-full" onClick={toggle}>
-          {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-        </Button>
-        <Button variant="ghost" className="rounded-full text-muted-foreground" onClick={onDone}>
-          <SkipForward className="mr-1.5 h-3.5 w-3.5" /> Skip
-        </Button>
-      </div>
+
+      <AudioPlayer
+        url={url}
+        autoPlay
+        onStart={() => {
+          setPlaying(true);
+          onStart();
+        }}
+        onEnded={() => {
+          setPlaying(false);
+          onDone();
+        }}
+      />
+
+      <Button variant="ghost" className="rounded-full text-muted-foreground" onClick={onDone}>
+        <SkipForward className="mr-1.5 h-3.5 w-3.5" /> Skip
+      </Button>
     </div>
   );
 }
