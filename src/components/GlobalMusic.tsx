@@ -61,7 +61,7 @@ function fade(audio: HTMLAudioElement, to: number, ms = 500) {
  * App-wide soundtrack. The <audio> element lives in this provider, which sits
  * above the router outlet, so navigating between pages never restarts the song.
  */
-export function GlobalMusicProvider({ userId, children }: { userId: string; children: React.ReactNode }) {
+export function GlobalMusicProvider({ children }: { children: React.ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const duckedRef = useRef(false);
   const [track, setTrack] = useState<Track | null>(null);
@@ -186,15 +186,8 @@ export function GlobalMusicProvider({ userId, children }: { userId: string; chil
     [track, playing, muted, volume, toggle, duck, unduck],
   );
 
-  return (
-    <MusicContext.Provider value={api}>
-      {children}
-      <MusicUploadContext.Provider value={{ userId, reload: loadLatest }}>{null}</MusicUploadContext.Provider>
-    </MusicContext.Provider>
-  );
+  return <MusicContext.Provider value={api}>{children}</MusicContext.Provider>;
 }
-
-const MusicUploadContext = createContext<{ userId: string; reload: () => Promise<void> } | null>(null);
 
 /** Header control: play / pause / mute / volume / upload. */
 export function GlobalMusicButton({ userId }: { userId: string }) {
