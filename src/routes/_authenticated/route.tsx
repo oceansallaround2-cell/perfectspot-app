@@ -6,7 +6,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { accountByEmail } from "@/lib/accounts";
 import { NotificationCenter } from "@/components/NotificationCenter";
+import { GlobalMusicButton, GlobalMusicProvider } from "@/components/GlobalMusic";
 import { enablePush, pushSupported } from "@/lib/notifications";
+
 
 /** Premium tap ripple on every button in the app. */
 function useGlobalRipple() {
