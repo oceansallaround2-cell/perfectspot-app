@@ -404,6 +404,8 @@ function VideoPanel({ room }: { room: Room }) {
   }, [room.video_url]);
 
   const ytId = room.video_url ? parseYouTubeId(room.video_url) : null;
+  const driveId = room.video_url && !ytId ? parseDriveFileId(room.video_url) : null;
+
 
   // HTML5 video sync
   useEffect(() => {
