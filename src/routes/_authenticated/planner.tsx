@@ -101,7 +101,7 @@ function PlannerPage() {
                 key={e.id}
                 event={e}
                 userId={user.id}
-                onOpen={() => navigate({ to: "/surprise/$eventId", params: { eventId: e.id }, search: {} })}
+                onOpen={() => navigate({ to: "/surprise/$eventId", params: { eventId: e.id }, search: { step: undefined } })}
                 onEdit={() => setEditing(e)}
                 onChanged={load}
               />
@@ -120,7 +120,7 @@ function PlannerPage() {
                 key={e.id}
                 event={e}
                 userId={user.id}
-                onOpen={() => navigate({ to: "/surprise/$eventId", params: { eventId: e.id }, search: {} })}
+                onOpen={() => navigate({ to: "/surprise/$eventId", params: { eventId: e.id }, search: { step: undefined } })}
                 onEdit={e.creator_id === user.id ? () => setEditing(e) : undefined}
                 onChanged={load}
               />

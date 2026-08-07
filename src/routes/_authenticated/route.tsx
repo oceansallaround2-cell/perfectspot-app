@@ -91,7 +91,7 @@ function AuthedLayout() {
         .eq("user_id", user.id)
         .maybeSingle();
       if (!progress && !cancelled) {
-        navigate({ to: "/surprise/$eventId", params: { eventId: ev.id }, search: {} });
+        navigate({ to: "/surprise/$eventId", params: { eventId: ev.id }, search: { step: undefined } });
       }
     })();
     return () => {

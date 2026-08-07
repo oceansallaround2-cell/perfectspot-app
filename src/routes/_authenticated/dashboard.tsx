@@ -69,7 +69,7 @@ function Dashboard() {
         <Link
           to="/surprise/$eventId"
           params={{ eventId: surprise.id }}
-          search={{}}
+          search={{ step: undefined }}
           className="animate-fade-up flex items-center justify-between rounded-3xl border border-primary/40 p-4"
           style={{ background: "var(--gradient-primary)", boxShadow: "0 0 45px -10px rgba(138,95,201,0.8)" }}
         >

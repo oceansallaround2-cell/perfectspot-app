@@ -3,6 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Tv, Copy, Check, LogOut, Send, Mic, MicOff, Users, Play, Pause, Link2, AlertCircle, Square, Trash2 } from "lucide-react";
 
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { DrivePanel, drivePreviewUrl, parseDriveFileId } from "@/components/DrivePanel";
+
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -404,6 +406,8 @@ function VideoPanel({ room }: { room: Room }) {
   }, [room.video_url]);
 
   const ytId = room.video_url ? parseYouTubeId(room.video_url) : null;
+  const driveId = room.video_url && !ytId ? parseDriveFileId(room.video_url) : null;
+
 
   // HTML5 video sync
   useEffect(() => {
@@ -475,11 +479,19 @@ function VideoPanel({ room }: { room: Room }) {
 
       <div className="aspect-video overflow-hidden rounded-2xl bg-black">
         {!room.video_url ? (
-          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            Paste a video URL to start watching together.
+          <div className="flex h-full items-center justify-center px-6 text-center text-sm text-muted-foreground">
+            Paste a video URL, or share something from Drive Sync below.
           </div>
         ) : ytId ? (
           <YouTubePlayer videoId={ytId} isPlaying={room.is_playing} position={room.position_seconds} />
+        ) : driveId ? (
+          <iframe
+            src={drivePreviewUrl(driveId)}
+            title="Shared Google Drive file"
+            allow="autoplay; fullscreen"
+            allowFullScreen
+            className="h-full w-full border-0"
+          />
         ) : (
           <video
             ref={videoRef}
@@ -492,6 +504,16 @@ function VideoPanel({ room }: { room: Room }) {
           />
         )}
       </div>
+
+      <div className="mt-3">
+        <DrivePanel
+          onShare={async (url, name) => {
+            await updateState({ video_url: url, position_seconds: 0, is_playing: false });
+            toast.success(`Shared "${name}" with your partner`);
+          }}
+        />
+      </div>
+
 
       {ytId && (
         <div className="mt-3 flex items-center justify-center gap-2">

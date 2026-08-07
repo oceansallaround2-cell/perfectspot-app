@@ -19,6 +19,7 @@ import { Route as AuthenticatedLoveRouteImport } from './routes/_authenticated/l
 import { Route as AuthenticatedJournalRouteImport } from './routes/_authenticated/journal'
 import { Route as AuthenticatedDatesRouteImport } from './routes/_authenticated/dates'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as OauthDriveReturnRouteImport } from './routes/oauth/drive/return'
 import { Route as AuthenticatedSurpriseEventIdRouteImport } from './routes/_authenticated/surprise.$eventId'
 
 const AuthRoute = AuthRouteImport.update({
@@ -70,6 +71,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const OauthDriveReturnRoute = OauthDriveReturnRouteImport.update({
+  id: '/oauth/drive/return',
+  path: '/oauth/drive/return',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedSurpriseEventIdRoute =
   AuthenticatedSurpriseEventIdRouteImport.update({
     id: '/surprise/$eventId',
@@ -88,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/planner': typeof AuthenticatedPlannerRoute
   '/watch': typeof AuthenticatedWatchRoute
   '/surprise/$eventId': typeof AuthenticatedSurpriseEventIdRoute
+  '/oauth/drive/return': typeof OauthDriveReturnRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -100,6 +107,7 @@ export interface FileRoutesByTo {
   '/planner': typeof AuthenticatedPlannerRoute
   '/watch': typeof AuthenticatedWatchRoute
   '/surprise/$eventId': typeof AuthenticatedSurpriseEventIdRoute
+  '/oauth/drive/return': typeof OauthDriveReturnRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -114,6 +122,7 @@ export interface FileRoutesById {
   '/_authenticated/planner': typeof AuthenticatedPlannerRoute
   '/_authenticated/watch': typeof AuthenticatedWatchRoute
   '/_authenticated/surprise/$eventId': typeof AuthenticatedSurpriseEventIdRoute
+  '/oauth/drive/return': typeof OauthDriveReturnRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -128,6 +137,7 @@ export interface FileRouteTypes {
     | '/planner'
     | '/watch'
     | '/surprise/$eventId'
+    | '/oauth/drive/return'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -140,6 +150,7 @@ export interface FileRouteTypes {
     | '/planner'
     | '/watch'
     | '/surprise/$eventId'
+    | '/oauth/drive/return'
   id:
     | '__root__'
     | '/'
@@ -153,12 +164,14 @@ export interface FileRouteTypes {
     | '/_authenticated/planner'
     | '/_authenticated/watch'
     | '/_authenticated/surprise/$eventId'
+    | '/oauth/drive/return'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  OauthDriveReturnRoute: typeof OauthDriveReturnRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -233,6 +246,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/oauth/drive/return': {
+      id: '/oauth/drive/return'
+      path: '/oauth/drive/return'
+      fullPath: '/oauth/drive/return'
+      preLoaderRoute: typeof OauthDriveReturnRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/surprise/$eventId': {
       id: '/_authenticated/surprise/$eventId'
       path: '/surprise/$eventId'
@@ -272,6 +292,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  OauthDriveReturnRoute: OauthDriveReturnRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
