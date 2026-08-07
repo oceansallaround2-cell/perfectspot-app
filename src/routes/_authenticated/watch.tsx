@@ -3,6 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Tv, Copy, Check, LogOut, Send, Mic, MicOff, Users, Play, Pause, Link2, AlertCircle, Square, Trash2 } from "lucide-react";
 
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { DrivePanel, drivePreviewUrl, parseDriveFileId } from "@/components/DrivePanel";
+
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
