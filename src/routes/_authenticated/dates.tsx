@@ -333,7 +333,13 @@ function DatesPage() {
                             ? `Passed ${d.meta.daysSinceLast} day${d.meta.daysSinceLast === 1 ? "" : "s"} ago`
                             : `${d.meta.daysUntil} day${d.meta.daysUntil === 1 ? "" : "s"} left`}
                     </span>
-                    {d.type.recurring && d.meta.yearsSince !== null && d.meta.yearsSince > 0 && (
+                    {formatTime(d.event_time) && (
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground">{formatTime(d.event_time)}</span>
+                    )}
+                    {d.repeats && (
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-primary">yearly</span>
+                    )}
+                    {d.repeats && d.meta.yearsSince !== null && d.meta.yearsSince > 0 && (
                       <span className="rounded-full bg-secondary px-2 py-0.5 text-secondary-foreground">
                         {d.meta.yearsSince} yr{d.meta.yearsSince === 1 ? "" : "s"}
                       </span>
