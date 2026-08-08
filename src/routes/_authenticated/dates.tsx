@@ -23,6 +23,8 @@ interface DateRow {
   title: string;
   description: string | null;
   date: string;
+  event_time: string | null;
+  repeat_yearly: boolean | null;
   is_anniversary: boolean;
   event_type: string | null;
   created_at: string;
@@ -68,8 +70,18 @@ const emptyForm = {
   title: "",
   desc: "",
   dateVal: "",
+  timeVal: "",
   type: "custom" as EventTypeValue,
+  repeatYearly: false,
 };
+
+function formatTime(t: string | null | undefined) {
+  if (!t) return null;
+  const [h, m] = t.split(":");
+  const d = new Date();
+  d.setHours(parseInt(h ?? "0", 10), parseInt(m ?? "0", 10), 0, 0);
+  return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
 
 function DatesPage() {
   const { user } = Route.useRouteContext();
@@ -106,12 +118,15 @@ function DatesPage() {
   }
 
   function openEdit(row: DateRow) {
+    const type = (row.event_type as EventTypeValue) ?? (row.is_anniversary ? "anniversary" : "custom");
     setEditingId(row.id);
     setForm({
       title: row.title,
       desc: row.description ?? "",
       dateVal: row.date,
-      type: (row.event_type as EventTypeValue) ?? (row.is_anniversary ? "anniversary" : "custom"),
+      timeVal: row.event_time ? row.event_time.slice(0, 5) : "",
+      type,
+      repeatYearly: row.repeat_yearly ?? eventTypeMeta(type).recurring,
     });
     setOpen(true);
   }
@@ -122,12 +137,15 @@ function DatesPage() {
     if (!title || !form.dateVal) return;
     setSaving(true);
     const meta = eventTypeMeta(form.type);
+    const repeats = meta.recurring || form.repeatYearly;
     const payload = {
       title,
       description: form.desc.trim() || null,
       date: form.dateVal,
+      event_time: form.timeVal || null,
+      repeat_yearly: repeats,
       event_type: form.type,
-      is_anniversary: meta.recurring,
+      is_anniversary: repeats,
     };
 
     if (editingId) {
@@ -171,10 +189,11 @@ function DatesPage() {
   const sorted = useMemo(() => {
     const withMeta = dates.map((d) => {
       const meta = eventTypeMeta(d.event_type ?? (d.is_anniversary ? "anniversary" : "custom"));
-      return { ...d, type: meta, meta: computeCountdown(d.date, meta.recurring) };
+      const repeats = meta.recurring || d.repeat_yearly === true;
+      return { ...d, type: meta, repeats, meta: computeCountdown(d.date, repeats) };
     });
     if (sort === "anniversary") {
-      return withMeta.filter((d) => d.type.recurring).sort((a, b) => a.meta.daysUntil - b.meta.daysUntil);
+      return withMeta.filter((d) => d.repeats).sort((a, b) => a.meta.daysUntil - b.meta.daysUntil);
     }
     if (sort === "recent") return withMeta.sort((a, b) => b.created_at.localeCompare(a.created_at));
     return withMeta.sort((a, b) => a.meta.daysUntil - b.meta.daysUntil);
@@ -223,17 +242,43 @@ function DatesPage() {
               <Label>Title</Label>
               <Input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="Our first date" required />
             </div>
-            <div className="space-y-1.5">
-              <Label>Date</Label>
-              <Input type="date" value={form.dateVal} onChange={(e) => setForm((f) => ({ ...f, dateVal: e.target.value }))} required />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Date</Label>
+                <Input type="date" value={form.dateVal} onChange={(e) => setForm((f) => ({ ...f, dateVal: e.target.value }))} required />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Time <span className="text-muted-foreground">(optional)</span></Label>
+                <Input type="time" value={form.timeVal} onChange={(e) => setForm((f) => ({ ...f, timeVal: e.target.value }))} />
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label>Description</Label>
               <Textarea value={form.desc} onChange={(e) => setForm((f) => ({ ...f, desc: e.target.value }))} rows={2} placeholder="Anything you want to remember" />
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              {eventTypeMeta(form.type).recurring ? "Repeats every year with a live countdown." : "A one-time event with a countdown."}
-            </p>
+            {eventTypeMeta(form.type).recurring ? (
+              <p className="text-[11px] text-muted-foreground">Repeats every year with a live countdown.</p>
+            ) : (
+              <div className="space-y-2 rounded-2xl border border-border/60 p-3" style={{ background: "var(--card)" }}>
+                <Label className="text-xs">Repeat this event every year?</Label>
+                <div className="flex gap-2">
+                  {[
+                    { v: true, label: "Yes, yearly" },
+                    { v: false, label: "One-time" },
+                  ].map((opt) => (
+                    <button
+                      key={String(opt.v)}
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, repeatYearly: opt.v }))}
+                      className="press-pop flex-1 rounded-full border border-border/60 px-3 py-1.5 text-xs font-medium transition"
+                      style={form.repeatYearly === opt.v
+                        ? { background: "var(--gradient-primary)", color: "var(--primary-foreground)", borderColor: "transparent", boxShadow: "var(--shadow-soft)" }
+                        : { background: "var(--background)" }}
+                    >{opt.label}</button>
+                  ))}
+                </div>
+              </div>
+            )}
             <Button type="submit" disabled={saving} className="btn-romantic press-pop shine w-full rounded-full">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : editingId ? "Save changes" : "Save"}
             </Button>
@@ -288,7 +333,13 @@ function DatesPage() {
                             ? `Passed ${d.meta.daysSinceLast} day${d.meta.daysSinceLast === 1 ? "" : "s"} ago`
                             : `${d.meta.daysUntil} day${d.meta.daysUntil === 1 ? "" : "s"} left`}
                     </span>
-                    {d.type.recurring && d.meta.yearsSince !== null && d.meta.yearsSince > 0 && (
+                    {formatTime(d.event_time) && (
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground">{formatTime(d.event_time)}</span>
+                    )}
+                    {d.repeats && (
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-primary">yearly</span>
+                    )}
+                    {d.repeats && d.meta.yearsSince !== null && d.meta.yearsSince > 0 && (
                       <span className="rounded-full bg-secondary px-2 py-0.5 text-secondary-foreground">
                         {d.meta.yearsSince} yr{d.meta.yearsSince === 1 ? "" : "s"}
                       </span>

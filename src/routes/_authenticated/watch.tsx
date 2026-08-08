@@ -837,6 +837,7 @@ function ChatPanel({
   const [text, setText] = useState("");
   const [recording, setRecording] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [preview, setPreview] = useState<{ blob: Blob; seconds: number; url: string } | null>(null);
   const [audioUrls, setAudioUrls] = useState<Record<string, string>>({});
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -885,30 +886,17 @@ function ChatPanel({
       chunksRef.current = [];
       startedAtRef.current = Date.now();
       recorder.ondataavailable = (ev) => { if (ev.data.size > 0) chunksRef.current.push(ev.data); };
-      recorder.onstop = async () => {
+      recorder.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
-        const seconds = Math.round((Date.now() - startedAtRef.current) / 1000);
+        const seconds = Math.max(1, Math.round((Date.now() - startedAtRef.current) / 1000));
         setRecording(false);
         if (blob.size < 500) return;
-        setUploading(true);
-        const path = `${userId}/${crypto.randomUUID()}.webm`;
-        const { error: upErr } = await supabase.storage.from("voice-notes").upload(path, blob, { contentType: blob.type });
-        if (upErr) {
-          setUploading(false);
-          toast.error("Couldn't send voice note", { description: upErr.message });
-          return;
-        }
-        const { error } = await supabase.from("watch_messages").insert({
-          room_id: roomId,
-          sender_id: userId,
-          message: `Voice note · ${seconds}s`,
-          kind: "voice",
-          audio_path: path,
-          duration_seconds: seconds,
+        // Preview first — nothing is sent until they tap Send.
+        setPreview((prev) => {
+          if (prev) URL.revokeObjectURL(prev.url);
+          return { blob, seconds, url: URL.createObjectURL(blob) };
         });
-        setUploading(false);
-        if (error) toast.error("Couldn't send voice note");
       };
       recorderRef.current = recorder;
       recorder.start();
@@ -919,6 +907,39 @@ function ChatPanel({
   };
 
   const stopRecording = () => recorderRef.current?.stop();
+
+  const discardPreview = () => {
+    setPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev.url);
+      return null;
+    });
+  };
+
+  const sendVoice = async () => {
+    if (!preview) return;
+    setUploading(true);
+    const path = `${userId}/${crypto.randomUUID()}.webm`;
+    const { error: upErr } = await supabase.storage.from("voice-notes").upload(path, preview.blob, { contentType: preview.blob.type });
+    if (upErr) {
+      setUploading(false);
+      toast.error("Couldn't send voice note", { description: upErr.message });
+      return;
+    }
+    const { error } = await supabase.from("watch_messages").insert({
+      room_id: roomId,
+      sender_id: userId,
+      message: `Voice note · ${preview.seconds}s`,
+      kind: "voice",
+      audio_path: path,
+      duration_seconds: preview.seconds,
+    });
+    setUploading(false);
+    if (error) {
+      toast.error("Couldn't send voice note");
+      return;
+    }
+    discardPreview();
+  };
 
   const removeMessage = async (m: Message) => {
     const { error } = await supabase
@@ -980,6 +1001,31 @@ function ChatPanel({
 
         })}
       </div>
+      {preview && (
+        <div className="animate-fade-up mb-2 flex items-center gap-2 rounded-2xl border border-primary/30 bg-primary/5 p-2">
+          <audio controls src={preview.url} className="h-9 min-w-0 flex-1" />
+          <span className="shrink-0 text-[10px] text-muted-foreground">{preview.seconds}s</span>
+          <Button
+            onClick={discardPreview}
+            size="icon"
+            variant="ghost"
+            disabled={uploading}
+            className="press-pop shrink-0 rounded-full text-muted-foreground hover:text-destructive"
+            aria-label="Delete recording"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+          <Button
+            onClick={sendVoice}
+            size="icon"
+            disabled={uploading}
+            className="btn-romantic press-pop shrink-0 rounded-full"
+            aria-label="Send voice note"
+          >
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
       <div className="flex gap-2">
         <Input
           value={text}

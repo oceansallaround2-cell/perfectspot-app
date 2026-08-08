@@ -14,31 +14,32 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
-async function ensureAccountAndSignIn(account: AccountInfo) {
+async function ensureAccountAndSignIn(account: AccountInfo, password: string) {
   const { error } = await supabase.auth.signInWithPassword({
     email: account.email,
-    password: account.password,
+    password,
   });
   if (!error) return;
-  const msg = (error.message || "").toLowerCase();
-  if (msg.includes("invalid") || msg.includes("credential") || msg.includes("not found")) {
+
+  // First ever login for this account: provision it with the default passcode.
+  if (password === account.password) {
     const { error: signUpErr } = await supabase.auth.signUp({
       email: account.email,
-      password: account.password,
+      password,
       options: {
         emailRedirectTo: `${window.location.origin}/dashboard`,
         data: { username: account.username, display_name: account.displayName, partner_name: account.partnerName },
       },
     });
-    if (signUpErr) throw signUpErr;
+    if (signUpErr) throw error;
     const { error: retryErr } = await supabase.auth.signInWithPassword({
       email: account.email,
-      password: account.password,
+      password,
     });
     if (retryErr) throw retryErr;
-  } else {
-    throw error;
+    return;
   }
+  throw error;
 }
 
 async function ensureProfile(userId: string, account: AccountInfo) {
@@ -66,12 +67,12 @@ function AuthPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const account = findAccount(username, password);
-      if (!account) {
+      const account = findAccount(username);
+      if (!account || !password.trim()) {
         toast.error("Invalid credentials", { description: "Only Mango and Anshalien can enter 💜" });
         return;
       }
-      await ensureAccountAndSignIn(account);
+      await ensureAccountAndSignIn(account, password.trim());
       const { data } = await supabase.auth.getUser();
       if (data.user) await ensureProfile(data.user.id, account);
       toast.success(`Welcome ${account.displayName} 💜`);

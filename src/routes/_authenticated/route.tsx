@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, redirect, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Heart, LogOut, LayoutDashboard, Image as ImageIcon, Send, Calendar, BookHeart, Tv, PartyPopper } from "lucide-react";
+import { Heart, LogOut, LayoutDashboard, Image as ImageIcon, Send, Calendar, BookHeart, Tv, PartyPopper, Settings } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,10 @@ function useGlobalRipple() {
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async () => {
+    // Session first: it is restored from local storage and refreshed silently,
+    // so a flaky network or an offline device never signs anyone out.
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData.session?.user) return { user: sessionData.session.user };
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/auth" });
     return { user: data.user };
@@ -148,6 +152,9 @@ function AuthedLayout() {
           <div className="flex items-center gap-1">
             <GlobalMusicButton userId={user.id} />
             <NotificationCenter userId={user.id} />
+            <Link to="/settings" className="rounded-full p-2 text-muted-foreground transition hover:text-primary" aria-label="Settings">
+              <Settings className="h-4 w-4" />
+            </Link>
             <Button variant="ghost" size="icon" onClick={signOut} className="rounded-full text-muted-foreground hover:text-primary">
               <LogOut className="h-4 w-4" />
             </Button>

@@ -71,9 +71,11 @@ export type Database = {
           creator_id: string
           date: string
           description: string | null
+          event_time: string | null
           event_type: string
           id: string
           is_anniversary: boolean
+          repeat_yearly: boolean
           title: string
           updated_at: string | null
         }
@@ -82,9 +84,11 @@ export type Database = {
           creator_id: string
           date: string
           description?: string | null
+          event_time?: string | null
           event_type?: string
           id?: string
           is_anniversary?: boolean
+          repeat_yearly?: boolean
           title: string
           updated_at?: string | null
         }
@@ -93,9 +97,11 @@ export type Database = {
           creator_id?: string
           date?: string
           description?: string | null
+          event_time?: string | null
           event_type?: string
           id?: string
           is_anniversary?: boolean
+          repeat_yearly?: boolean
           title?: string
           updated_at?: string | null
         }
