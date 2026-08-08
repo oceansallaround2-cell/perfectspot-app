@@ -189,10 +189,11 @@ function DatesPage() {
   const sorted = useMemo(() => {
     const withMeta = dates.map((d) => {
       const meta = eventTypeMeta(d.event_type ?? (d.is_anniversary ? "anniversary" : "custom"));
-      return { ...d, type: meta, meta: computeCountdown(d.date, meta.recurring) };
+      const repeats = meta.recurring || d.repeat_yearly === true;
+      return { ...d, type: meta, repeats, meta: computeCountdown(d.date, repeats) };
     });
     if (sort === "anniversary") {
-      return withMeta.filter((d) => d.type.recurring).sort((a, b) => a.meta.daysUntil - b.meta.daysUntil);
+      return withMeta.filter((d) => d.repeats).sort((a, b) => a.meta.daysUntil - b.meta.daysUntil);
     }
     if (sort === "recent") return withMeta.sort((a, b) => b.created_at.localeCompare(a.created_at));
     return withMeta.sort((a, b) => a.meta.daysUntil - b.meta.daysUntil);
