@@ -242,17 +242,43 @@ function DatesPage() {
               <Label>Title</Label>
               <Input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="Our first date" required />
             </div>
-            <div className="space-y-1.5">
-              <Label>Date</Label>
-              <Input type="date" value={form.dateVal} onChange={(e) => setForm((f) => ({ ...f, dateVal: e.target.value }))} required />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Date</Label>
+                <Input type="date" value={form.dateVal} onChange={(e) => setForm((f) => ({ ...f, dateVal: e.target.value }))} required />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Time <span className="text-muted-foreground">(optional)</span></Label>
+                <Input type="time" value={form.timeVal} onChange={(e) => setForm((f) => ({ ...f, timeVal: e.target.value }))} />
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label>Description</Label>
               <Textarea value={form.desc} onChange={(e) => setForm((f) => ({ ...f, desc: e.target.value }))} rows={2} placeholder="Anything you want to remember" />
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              {eventTypeMeta(form.type).recurring ? "Repeats every year with a live countdown." : "A one-time event with a countdown."}
-            </p>
+            {eventTypeMeta(form.type).recurring ? (
+              <p className="text-[11px] text-muted-foreground">Repeats every year with a live countdown.</p>
+            ) : (
+              <div className="space-y-2 rounded-2xl border border-border/60 p-3" style={{ background: "var(--card)" }}>
+                <Label className="text-xs">Repeat this event every year?</Label>
+                <div className="flex gap-2">
+                  {[
+                    { v: true, label: "Yes, yearly" },
+                    { v: false, label: "One-time" },
+                  ].map((opt) => (
+                    <button
+                      key={String(opt.v)}
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, repeatYearly: opt.v }))}
+                      className="press-pop flex-1 rounded-full border border-border/60 px-3 py-1.5 text-xs font-medium transition"
+                      style={form.repeatYearly === opt.v
+                        ? { background: "var(--gradient-primary)", color: "var(--primary-foreground)", borderColor: "transparent", boxShadow: "var(--shadow-soft)" }
+                        : { background: "var(--background)" }}
+                    >{opt.label}</button>
+                  ))}
+                </div>
+              </div>
+            )}
             <Button type="submit" disabled={saving} className="btn-romantic press-pop shine w-full rounded-full">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : editingId ? "Save changes" : "Save"}
             </Button>
