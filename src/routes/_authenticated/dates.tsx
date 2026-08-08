@@ -118,12 +118,15 @@ function DatesPage() {
   }
 
   function openEdit(row: DateRow) {
+    const type = (row.event_type as EventTypeValue) ?? (row.is_anniversary ? "anniversary" : "custom");
     setEditingId(row.id);
     setForm({
       title: row.title,
       desc: row.description ?? "",
       dateVal: row.date,
-      type: (row.event_type as EventTypeValue) ?? (row.is_anniversary ? "anniversary" : "custom"),
+      timeVal: row.event_time ? row.event_time.slice(0, 5) : "",
+      type,
+      repeatYearly: row.repeat_yearly ?? eventTypeMeta(type).recurring,
     });
     setOpen(true);
   }
