@@ -23,6 +23,8 @@ interface DateRow {
   title: string;
   description: string | null;
   date: string;
+  event_time: string | null;
+  repeat_yearly: boolean | null;
   is_anniversary: boolean;
   event_type: string | null;
   created_at: string;
