@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedWatchRouteImport } from './routes/_authenticated/watch'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedPlannerRouteImport } from './routes/_authenticated/planner'
 import { Route as AuthenticatedMemoriesRouteImport } from './routes/_authenticated/memories'
 import { Route as AuthenticatedLoveRouteImport } from './routes/_authenticated/love'
@@ -39,6 +40,11 @@ const IndexRoute = IndexRouteImport.update({
 const AuthenticatedWatchRoute = AuthenticatedWatchRouteImport.update({
   id: '/watch',
   path: '/watch',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedPlannerRoute = AuthenticatedPlannerRouteImport.update({
@@ -92,6 +98,7 @@ export interface FileRoutesByFullPath {
   '/love': typeof AuthenticatedLoveRoute
   '/memories': typeof AuthenticatedMemoriesRoute
   '/planner': typeof AuthenticatedPlannerRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/watch': typeof AuthenticatedWatchRoute
   '/surprise/$eventId': typeof AuthenticatedSurpriseEventIdRoute
   '/oauth/drive/return': typeof OauthDriveReturnRoute
@@ -105,6 +112,7 @@ export interface FileRoutesByTo {
   '/love': typeof AuthenticatedLoveRoute
   '/memories': typeof AuthenticatedMemoriesRoute
   '/planner': typeof AuthenticatedPlannerRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/watch': typeof AuthenticatedWatchRoute
   '/surprise/$eventId': typeof AuthenticatedSurpriseEventIdRoute
   '/oauth/drive/return': typeof OauthDriveReturnRoute
@@ -120,6 +128,7 @@ export interface FileRoutesById {
   '/_authenticated/love': typeof AuthenticatedLoveRoute
   '/_authenticated/memories': typeof AuthenticatedMemoriesRoute
   '/_authenticated/planner': typeof AuthenticatedPlannerRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/watch': typeof AuthenticatedWatchRoute
   '/_authenticated/surprise/$eventId': typeof AuthenticatedSurpriseEventIdRoute
   '/oauth/drive/return': typeof OauthDriveReturnRoute
@@ -135,6 +144,7 @@ export interface FileRouteTypes {
     | '/love'
     | '/memories'
     | '/planner'
+    | '/settings'
     | '/watch'
     | '/surprise/$eventId'
     | '/oauth/drive/return'
@@ -148,6 +158,7 @@ export interface FileRouteTypes {
     | '/love'
     | '/memories'
     | '/planner'
+    | '/settings'
     | '/watch'
     | '/surprise/$eventId'
     | '/oauth/drive/return'
@@ -162,6 +173,7 @@ export interface FileRouteTypes {
     | '/_authenticated/love'
     | '/_authenticated/memories'
     | '/_authenticated/planner'
+    | '/_authenticated/settings'
     | '/_authenticated/watch'
     | '/_authenticated/surprise/$eventId'
     | '/oauth/drive/return'
@@ -202,6 +214,13 @@ declare module '@tanstack/react-router' {
       path: '/watch'
       fullPath: '/watch'
       preLoaderRoute: typeof AuthenticatedWatchRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/planner': {
@@ -270,6 +289,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLoveRoute: typeof AuthenticatedLoveRoute
   AuthenticatedMemoriesRoute: typeof AuthenticatedMemoriesRoute
   AuthenticatedPlannerRoute: typeof AuthenticatedPlannerRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedWatchRoute: typeof AuthenticatedWatchRoute
   AuthenticatedSurpriseEventIdRoute: typeof AuthenticatedSurpriseEventIdRoute
 }
@@ -281,6 +301,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLoveRoute: AuthenticatedLoveRoute,
   AuthenticatedMemoriesRoute: AuthenticatedMemoriesRoute,
   AuthenticatedPlannerRoute: AuthenticatedPlannerRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedWatchRoute: AuthenticatedWatchRoute,
   AuthenticatedSurpriseEventIdRoute: AuthenticatedSurpriseEventIdRoute,
 }
