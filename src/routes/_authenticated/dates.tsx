@@ -70,8 +70,18 @@ const emptyForm = {
   title: "",
   desc: "",
   dateVal: "",
+  timeVal: "",
   type: "custom" as EventTypeValue,
+  repeatYearly: false,
 };
+
+function formatTime(t: string | null | undefined) {
+  if (!t) return null;
+  const [h, m] = t.split(":");
+  const d = new Date();
+  d.setHours(parseInt(h ?? "0", 10), parseInt(m ?? "0", 10), 0, 0);
+  return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
 
 function DatesPage() {
   const { user } = Route.useRouteContext();
