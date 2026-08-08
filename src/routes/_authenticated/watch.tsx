@@ -1001,6 +1001,31 @@ function ChatPanel({
 
         })}
       </div>
+      {preview && (
+        <div className="animate-fade-up mb-2 flex items-center gap-2 rounded-2xl border border-primary/30 bg-primary/5 p-2">
+          <audio controls src={preview.url} className="h-9 min-w-0 flex-1" />
+          <span className="shrink-0 text-[10px] text-muted-foreground">{preview.seconds}s</span>
+          <Button
+            onClick={discardPreview}
+            size="icon"
+            variant="ghost"
+            disabled={uploading}
+            className="press-pop shrink-0 rounded-full text-muted-foreground hover:text-destructive"
+            aria-label="Delete recording"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+          <Button
+            onClick={sendVoice}
+            size="icon"
+            disabled={uploading}
+            className="btn-romantic press-pop shrink-0 rounded-full"
+            aria-label="Send voice note"
+          >
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
       <div className="flex gap-2">
         <Input
           value={text}
