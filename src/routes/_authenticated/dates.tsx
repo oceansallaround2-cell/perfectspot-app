@@ -137,12 +137,15 @@ function DatesPage() {
     if (!title || !form.dateVal) return;
     setSaving(true);
     const meta = eventTypeMeta(form.type);
+    const repeats = meta.recurring || form.repeatYearly;
     const payload = {
       title,
       description: form.desc.trim() || null,
       date: form.dateVal,
+      event_time: form.timeVal || null,
+      repeat_yearly: repeats,
       event_type: form.type,
-      is_anniversary: meta.recurring,
+      is_anniversary: repeats,
     };
 
     if (editingId) {
