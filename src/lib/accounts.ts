@@ -29,13 +29,14 @@ export const ACCOUNTS: Record<AccountKey, AccountInfo> = {
   },
 };
 
-export function findAccount(rawUsername: string, rawPassword: string): AccountInfo | null {
+/**
+ * Resolve which of the two accounts a username refers to.
+ * The password is NOT checked here — Supabase Auth is the source of truth,
+ * so a password changed in Settings keeps working.
+ */
+export function findAccount(rawUsername: string): AccountInfo | null {
   const u = rawUsername.trim().toLowerCase();
-  const p = rawPassword.trim();
-  const match = Object.values(ACCOUNTS).find(
-    (a) => a.key === u && a.password === p,
-  );
-  return match ?? null;
+  return Object.values(ACCOUNTS).find((a) => a.key === u || a.username.toLowerCase() === u) ?? null;
 }
 
 export function accountByEmail(email: string | null | undefined): AccountInfo | null {
