@@ -885,30 +885,17 @@ function ChatPanel({
       chunksRef.current = [];
       startedAtRef.current = Date.now();
       recorder.ondataavailable = (ev) => { if (ev.data.size > 0) chunksRef.current.push(ev.data); };
-      recorder.onstop = async () => {
+      recorder.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
-        const seconds = Math.round((Date.now() - startedAtRef.current) / 1000);
+        const seconds = Math.max(1, Math.round((Date.now() - startedAtRef.current) / 1000));
         setRecording(false);
         if (blob.size < 500) return;
-        setUploading(true);
-        const path = `${userId}/${crypto.randomUUID()}.webm`;
-        const { error: upErr } = await supabase.storage.from("voice-notes").upload(path, blob, { contentType: blob.type });
-        if (upErr) {
-          setUploading(false);
-          toast.error("Couldn't send voice note", { description: upErr.message });
-          return;
-        }
-        const { error } = await supabase.from("watch_messages").insert({
-          room_id: roomId,
-          sender_id: userId,
-          message: `Voice note · ${seconds}s`,
-          kind: "voice",
-          audio_path: path,
-          duration_seconds: seconds,
+        // Preview first — nothing is sent until they tap Send.
+        setPreview((prev) => {
+          if (prev) URL.revokeObjectURL(prev.url);
+          return { blob, seconds, url: URL.createObjectURL(blob) };
         });
-        setUploading(false);
-        if (error) toast.error("Couldn't send voice note");
       };
       recorderRef.current = recorder;
       recorder.start();
@@ -919,6 +906,39 @@ function ChatPanel({
   };
 
   const stopRecording = () => recorderRef.current?.stop();
+
+  const discardPreview = () => {
+    setPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev.url);
+      return null;
+    });
+  };
+
+  const sendVoice = async () => {
+    if (!preview) return;
+    setUploading(true);
+    const path = `${userId}/${crypto.randomUUID()}.webm`;
+    const { error: upErr } = await supabase.storage.from("voice-notes").upload(path, preview.blob, { contentType: preview.blob.type });
+    if (upErr) {
+      setUploading(false);
+      toast.error("Couldn't send voice note", { description: upErr.message });
+      return;
+    }
+    const { error } = await supabase.from("watch_messages").insert({
+      room_id: roomId,
+      sender_id: userId,
+      message: `Voice note · ${preview.seconds}s`,
+      kind: "voice",
+      audio_path: path,
+      duration_seconds: preview.seconds,
+    });
+    setUploading(false);
+    if (error) {
+      toast.error("Couldn't send voice note");
+      return;
+    }
+    discardPreview();
+  };
 
   const removeMessage = async (m: Message) => {
     const { error } = await supabase
