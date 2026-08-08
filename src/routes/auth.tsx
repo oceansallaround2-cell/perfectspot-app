@@ -67,12 +67,12 @@ function AuthPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const account = findAccount(username, password);
-      if (!account) {
+      const account = findAccount(username);
+      if (!account || !password.trim()) {
         toast.error("Invalid credentials", { description: "Only Mango and Anshalien can enter 💜" });
         return;
       }
-      await ensureAccountAndSignIn(account);
+      await ensureAccountAndSignIn(account, password.trim());
       const { data } = await supabase.auth.getUser();
       if (data.user) await ensureProfile(data.user.id, account);
       toast.success(`Welcome ${account.displayName} 💜`);
