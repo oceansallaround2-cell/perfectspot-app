@@ -837,6 +837,7 @@ function ChatPanel({
   const [text, setText] = useState("");
   const [recording, setRecording] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [preview, setPreview] = useState<{ blob: Blob; seconds: number; url: string } | null>(null);
   const [audioUrls, setAudioUrls] = useState<Record<string, string>>({});
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
