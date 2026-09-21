@@ -70,27 +70,34 @@ function MemoriesPage({ onLock }: { onLock: () => void }) {
   const [editCaption, setEditCaption] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const loadAll = useCallback(async () => {
-    setLoading(true);
-    const { data, error } = await supabase.from("memories").select("*").order("created_at", { ascending: false });
+  const loadedOnce = useRef(false);
+
+  /** `silent` keeps the grid on screen while refreshing in the background. */
+  const loadAll = useCallback(async (silent = false) => {
+    if (!silent && !loadedOnce.current) setLoading(true);
+    const [{ data, error }, { data: profs }] = await Promise.all([
+      supabase.from("memories").select("*").order("created_at", { ascending: false }),
+      supabase.from("profiles").select("id,display_name"),
+    ]);
     if (error) {
       toast.error("Couldn't load memories");
       setLoading(false);
       return;
     }
-    const { data: profs } = await supabase.from("profiles").select("id,display_name");
     const map: Record<string, string> = {};
     (profs ?? []).forEach((p) => { map[p.id] = p.display_name; });
     setProfiles(map);
 
-    const enriched = await Promise.all(
-      (data ?? []).map(async (m) => ({
+    const rows = data ?? [];
+    const signed = await signUrls(rows.map((m) => m.media_path));
+    setMemories(
+      rows.map((m) => ({
         ...m,
         uploader_name: map[m.uploader_id] ?? "Someone",
-        signed_url: (await signUrl(m.media_path)) ?? m.media_url,
-      })),
+        signed_url: signed[m.media_path] ?? m.media_url,
+      })) as Memory[],
     );
-    setMemories(enriched as Memory[]);
+    loadedOnce.current = true;
     setLoading(false);
   }, []);
 
@@ -98,11 +105,19 @@ function MemoriesPage({ onLock }: { onLock: () => void }) {
   useEffect(() => { getPartnerId(user.id).then(setPartnerId); }, [user.id]);
 
   useEffect(() => {
+    let timer: number | undefined;
     const ch = supabase
       .channel("memories-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "memories" }, () => loadAll())
+      .on("postgres_changes", { event: "*", schema: "public", table: "memories" }, () => {
+        // Coalesce bursts of changes into a single silent refresh.
+        if (timer) window.clearTimeout(timer);
+        timer = window.setTimeout(() => loadAll(true), 250);
+      })
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      if (timer) window.clearTimeout(timer);
+      supabase.removeChannel(ch);
+    };
   }, [loadAll]);
 
   function onPick(f: File) {
