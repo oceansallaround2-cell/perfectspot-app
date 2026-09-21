@@ -48,13 +48,20 @@ interface LoveMsg {
 
 function useHearts() {
   const [hearts, setHearts] = useState<{ id: number; x: number }[]>([]);
-  function burst() {
+  const timers = useRef<number[]>([]);
+
+  // Stable identity: keeps the realtime subscription from re-subscribing on every render.
+  const burst = useCallback(() => {
     const newHearts = Array.from({ length: 8 }, (_, i) => ({ id: Date.now() + i, x: Math.random() * 100 }));
     setHearts((h) => [...h, ...newHearts]);
-    setTimeout(() => {
-      setHearts((h) => h.filter((x) => !newHearts.find((n) => n.id === x.id)));
+    const t = window.setTimeout(() => {
+      setHearts((h) => h.filter((x) => !newHearts.some((n) => n.id === x.id)));
     }, 1800);
-  }
+    timers.current.push(t);
+  }, []);
+
+  useEffect(() => () => { timers.current.forEach(window.clearTimeout); timers.current = []; }, []);
+
   return { hearts, burst };
 }
 
