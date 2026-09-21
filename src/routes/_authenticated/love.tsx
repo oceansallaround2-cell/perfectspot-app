@@ -110,16 +110,29 @@ function LovePage() {
   }, [user.id, burst]);
 
   async function send(text: string) {
-    if (!text.trim()) return;
+    const body = text.trim();
+    if (!body) return;
     setSending(true);
     burst();
-    const { error } = await supabase.from("love_messages").insert({ sender_id: user.id, message: text.trim() });
+    // Optimistic bubble so the note appears the instant you tap.
+    const tempId = `temp-${crypto.randomUUID()}`;
+    setMessages((m) => [{ id: tempId, sender_id: user.id, message: body, created_at: new Date().toISOString() }, ...m]);
+    setCustom("");
+    const { data, error } = await supabase
+      .from("love_messages")
+      .insert({ sender_id: user.id, message: body })
+      .select()
+      .single();
     setSending(false);
     if (error) {
+      setMessages((m) => m.filter((x) => x.id !== tempId));
       toast.error("Couldn't send", { description: error.message });
       return;
     }
-    setCustom("");
+    setMessages((m) => {
+      const withoutTemp = m.filter((x) => x.id !== tempId);
+      return withoutTemp.some((x) => x.id === (data as LoveMsg).id) ? withoutTemp : [data as LoveMsg, ...withoutTemp];
+    });
     toast.success("Sent with love 💜");
     notifyPartner({
       actorId: user.id,
