@@ -128,7 +128,9 @@ function MemoriesPage({ onLock }: { onLock: () => void }) {
   async function doUpload() {
     if (!pending) return;
     setUploading(true);
-    setProgress(10);
+    setProgress(8);
+    // Smooth, continuous feedback while the network work happens.
+    const tick = window.setInterval(() => setProgress((p) => (p < 88 ? p + 3 : p)), 220);
     try {
       // Photos are compressed client-side; videos are uploaded untouched.
       const upload = await compressImage(pending);
@@ -139,18 +141,32 @@ function MemoriesPage({ onLock }: { onLock: () => void }) {
         upsert: false,
       });
       if (upErr) throw upErr;
-      setProgress(70);
+      setProgress(90);
       const { data: pub } = supabase.storage.from("memories").getPublicUrl(path);
       const mediaType = upload.type.startsWith("video") ? "video" : "photo";
-      const { error: insErr } = await supabase.from("memories").insert({
-        uploader_id: user.id,
-        media_url: pub.publicUrl,
-        media_path: path,
-        media_type: mediaType,
-        caption: caption.trim() || null,
-      });
+      const { data: inserted, error: insErr } = await supabase
+        .from("memories")
+        .insert({
+          uploader_id: user.id,
+          media_url: pub.publicUrl,
+          media_path: path,
+          media_type: mediaType,
+          caption: caption.trim() || null,
+        })
+        .select()
+        .single();
       if (insErr) throw insErr;
       setProgress(100);
+
+      // Show it instantly using a local preview, no extra round-trip.
+      if (inserted) {
+        const localUrl = URL.createObjectURL(upload);
+        setMemories((prev) => [
+          { ...(inserted as Memory), uploader_name: profiles[user.id] ?? "You", signed_url: localUrl },
+          ...prev,
+        ]);
+      }
+
       toast.success("Memory saved 💜");
       notifyPartner({
         actorId: user.id,
@@ -163,41 +179,47 @@ function MemoriesPage({ onLock }: { onLock: () => void }) {
       setPending(null);
       setCaption("");
       if (fileInput.current) fileInput.current.value = "";
-      loadAll();
     } catch (e) {
       toast.error("Upload failed", { description: e instanceof Error ? e.message : "Try again" });
     } finally {
+      window.clearInterval(tick);
       setUploading(false);
-      setTimeout(() => setProgress(0), 500);
+      setTimeout(() => setProgress(0), 400);
     }
   }
 
   async function saveMemoryEdit(m: Memory) {
+    const title = editTitle.trim() || null;
+    const cap = editCaption.trim() || null;
+    // Optimistic: reflect the edit right away.
+    setEditing(false);
+    setViewer({ ...m, title, caption: cap });
+    setMemories((prev) => prev.map((x) => (x.id === m.id ? { ...x, title, caption: cap } : x)));
     const { error } = await supabase
       .from("memories")
-      .update({
-        title: editTitle.trim() || null,
-        caption: editCaption.trim() || null,
-        updated_at: new Date().toISOString(),
-      })
+      .update({ title, caption: cap, updated_at: new Date().toISOString() })
       .eq("id", m.id)
       .eq("uploader_id", user.id);
     if (error) {
       toast.error("Couldn't update", { description: error.message });
+      loadAll(true);
       return;
     }
-    setEditing(false);
-    setViewer({ ...m, title: editTitle.trim() || null, caption: editCaption.trim() || null });
     toast.success("Memory updated");
-    loadAll();
   }
 
   async function remove(m: Memory) {
     if (!confirm("Delete this memory?")) return;
-    await supabase.storage.from("memories").remove([m.media_path]);
-    await supabase.from("memories").delete().eq("id", m.id);
+    // Optimistic: drop it from the grid instantly, clean up in the background.
+    setMemories((prev) => prev.filter((x) => x.id !== m.id));
     toast.success("Removed");
-    loadAll();
+    const { error } = await supabase.from("memories").delete().eq("id", m.id);
+    if (error) {
+      toast.error("Couldn't delete", { description: error.message });
+      loadAll(true);
+      return;
+    }
+    void supabase.storage.from("memories").remove([m.media_path]);
   }
 
   const filtered = useMemo(() => memories.filter((m) => {
