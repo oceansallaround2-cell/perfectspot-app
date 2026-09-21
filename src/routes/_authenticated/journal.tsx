@@ -55,11 +55,19 @@ function JournalPage() {
   useEffect(() => { load(); }, [load]);
   useEffect(() => { getPartnerId(user.id).then(setPartnerId); }, [user.id]);
   useEffect(() => {
+    let timer: number | undefined;
     const ch = supabase
       .channel("journal-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "journal_entries" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "journal_entries" }, () => {
+        // Coalesce rapid changes into one background refresh.
+        if (timer) window.clearTimeout(timer);
+        timer = window.setTimeout(() => load(), 250);
+      })
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      if (timer) window.clearTimeout(timer);
+      supabase.removeChannel(ch);
+    };
   }, [load]);
 
   async function write(e: React.FormEvent) {
@@ -67,14 +75,16 @@ function JournalPage() {
     if (!content.trim()) return;
     setSaving(true);
     const text = content.trim();
-    const { error } = await supabase.from("journal_entries").insert({
-      author_id: user.id,
-      content: text,
-      mood,
-    });
+    const { data, error } = await supabase
+      .from("journal_entries")
+      .insert({ author_id: user.id, content: text, mood })
+      .select()
+      .single();
     setSaving(false);
     if (error) toast.error("Couldn't save", { description: error.message });
     else {
+      // Show the new entry immediately instead of waiting for a refetch.
+      if (data) setEntries((prev) => (prev.some((e) => e.id === (data as Entry).id) ? prev : [data as Entry, ...prev]));
       setContent("");
       toast.success("Saved 💜");
       notifyPartner({
@@ -114,20 +124,30 @@ function JournalPage() {
     const text = editText.trim();
     if (!text) return;
     const id = editingId;
+    const previous = entries;
     setEditingId(null);
+    const stamp = new Date().toISOString();
+    setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, content: text, mood: editMood, updated_at: stamp } : e)));
     const { error } = await supabase
       .from("journal_entries")
-      .update({ content: text, mood: editMood, updated_at: new Date().toISOString() })
+      .update({ content: text, mood: editMood, updated_at: stamp })
       .eq("id", id)
       .eq("author_id", user.id);
-    if (error) toast.error("Couldn't update", { description: error.message });
-    else toast.success("Entry updated");
+    if (error) {
+      setEntries(previous);
+      toast.error("Couldn't update", { description: error.message });
+    } else toast.success("Entry updated");
   }
 
   async function remove(id: string) {
+    const previous = entries;
+    // Optimistic delete for instant feedback.
+    setEntries((prev) => prev.filter((e) => e.id !== id));
     const { error } = await supabase.from("journal_entries").delete().eq("id", id).eq("author_id", user.id);
-    if (error) toast.error("Couldn't delete", { description: error.message });
-    else toast.success("Entry deleted");
+    if (error) {
+      setEntries(previous);
+      toast.error("Couldn't delete", { description: error.message });
+    } else toast.success("Entry deleted");
   }
 
   const filtered = useMemo(() => entries.filter((e) => {

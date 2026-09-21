@@ -40,10 +40,16 @@ interface Memory {
 
 type FilterMode = "all" | "photo" | "video";
 
-async function signUrl(path: string): Promise<string | null> {
-  const { data, error } = await supabase.storage.from("memories").createSignedUrl(path, 60 * 60 * 6);
-  if (error) return null;
-  return data.signedUrl;
+/** One batched request for every path instead of one round-trip per memory. */
+async function signUrls(paths: string[]): Promise<Record<string, string>> {
+  if (paths.length === 0) return {};
+  const { data, error } = await supabase.storage.from("memories").createSignedUrls(paths, 60 * 60 * 6);
+  if (error || !data) return {};
+  const map: Record<string, string> = {};
+  data.forEach((d) => {
+    if (d.path && d.signedUrl) map[d.path] = d.signedUrl;
+  });
+  return map;
 }
 
 function MemoriesPage({ onLock }: { onLock: () => void }) {
@@ -64,27 +70,34 @@ function MemoriesPage({ onLock }: { onLock: () => void }) {
   const [editCaption, setEditCaption] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const loadAll = useCallback(async () => {
-    setLoading(true);
-    const { data, error } = await supabase.from("memories").select("*").order("created_at", { ascending: false });
+  const loadedOnce = useRef(false);
+
+  /** `silent` keeps the grid on screen while refreshing in the background. */
+  const loadAll = useCallback(async (silent = false) => {
+    if (!silent && !loadedOnce.current) setLoading(true);
+    const [{ data, error }, { data: profs }] = await Promise.all([
+      supabase.from("memories").select("*").order("created_at", { ascending: false }),
+      supabase.from("profiles").select("id,display_name"),
+    ]);
     if (error) {
       toast.error("Couldn't load memories");
       setLoading(false);
       return;
     }
-    const { data: profs } = await supabase.from("profiles").select("id,display_name");
     const map: Record<string, string> = {};
     (profs ?? []).forEach((p) => { map[p.id] = p.display_name; });
     setProfiles(map);
 
-    const enriched = await Promise.all(
-      (data ?? []).map(async (m) => ({
+    const rows = data ?? [];
+    const signed = await signUrls(rows.map((m) => m.media_path));
+    setMemories(
+      rows.map((m) => ({
         ...m,
         uploader_name: map[m.uploader_id] ?? "Someone",
-        signed_url: (await signUrl(m.media_path)) ?? m.media_url,
-      })),
+        signed_url: signed[m.media_path] ?? m.media_url,
+      })) as Memory[],
     );
-    setMemories(enriched as Memory[]);
+    loadedOnce.current = true;
     setLoading(false);
   }, []);
 
@@ -92,11 +105,19 @@ function MemoriesPage({ onLock }: { onLock: () => void }) {
   useEffect(() => { getPartnerId(user.id).then(setPartnerId); }, [user.id]);
 
   useEffect(() => {
+    let timer: number | undefined;
     const ch = supabase
       .channel("memories-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "memories" }, () => loadAll())
+      .on("postgres_changes", { event: "*", schema: "public", table: "memories" }, () => {
+        // Coalesce bursts of changes into a single silent refresh.
+        if (timer) window.clearTimeout(timer);
+        timer = window.setTimeout(() => loadAll(true), 250);
+      })
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      if (timer) window.clearTimeout(timer);
+      supabase.removeChannel(ch);
+    };
   }, [loadAll]);
 
   function onPick(f: File) {
@@ -107,7 +128,9 @@ function MemoriesPage({ onLock }: { onLock: () => void }) {
   async function doUpload() {
     if (!pending) return;
     setUploading(true);
-    setProgress(10);
+    setProgress(8);
+    // Smooth, continuous feedback while the network work happens.
+    const tick = window.setInterval(() => setProgress((p) => (p < 88 ? p + 3 : p)), 220);
     try {
       // Photos are compressed client-side; videos are uploaded untouched.
       const upload = await compressImage(pending);
@@ -118,18 +141,32 @@ function MemoriesPage({ onLock }: { onLock: () => void }) {
         upsert: false,
       });
       if (upErr) throw upErr;
-      setProgress(70);
+      setProgress(90);
       const { data: pub } = supabase.storage.from("memories").getPublicUrl(path);
       const mediaType = upload.type.startsWith("video") ? "video" : "photo";
-      const { error: insErr } = await supabase.from("memories").insert({
-        uploader_id: user.id,
-        media_url: pub.publicUrl,
-        media_path: path,
-        media_type: mediaType,
-        caption: caption.trim() || null,
-      });
+      const { data: inserted, error: insErr } = await supabase
+        .from("memories")
+        .insert({
+          uploader_id: user.id,
+          media_url: pub.publicUrl,
+          media_path: path,
+          media_type: mediaType,
+          caption: caption.trim() || null,
+        })
+        .select()
+        .single();
       if (insErr) throw insErr;
       setProgress(100);
+
+      // Show it instantly using a local preview, no extra round-trip.
+      if (inserted) {
+        const localUrl = URL.createObjectURL(upload);
+        setMemories((prev) => [
+          { ...(inserted as Memory), uploader_name: profiles[user.id] ?? "You", signed_url: localUrl },
+          ...prev,
+        ]);
+      }
+
       toast.success("Memory saved 💜");
       notifyPartner({
         actorId: user.id,
@@ -142,41 +179,47 @@ function MemoriesPage({ onLock }: { onLock: () => void }) {
       setPending(null);
       setCaption("");
       if (fileInput.current) fileInput.current.value = "";
-      loadAll();
     } catch (e) {
       toast.error("Upload failed", { description: e instanceof Error ? e.message : "Try again" });
     } finally {
+      window.clearInterval(tick);
       setUploading(false);
-      setTimeout(() => setProgress(0), 500);
+      setTimeout(() => setProgress(0), 400);
     }
   }
 
   async function saveMemoryEdit(m: Memory) {
+    const title = editTitle.trim() || null;
+    const cap = editCaption.trim() || null;
+    // Optimistic: reflect the edit right away.
+    setEditing(false);
+    setViewer({ ...m, title, caption: cap });
+    setMemories((prev) => prev.map((x) => (x.id === m.id ? { ...x, title, caption: cap } : x)));
     const { error } = await supabase
       .from("memories")
-      .update({
-        title: editTitle.trim() || null,
-        caption: editCaption.trim() || null,
-        updated_at: new Date().toISOString(),
-      })
+      .update({ title, caption: cap, updated_at: new Date().toISOString() })
       .eq("id", m.id)
       .eq("uploader_id", user.id);
     if (error) {
       toast.error("Couldn't update", { description: error.message });
+      loadAll(true);
       return;
     }
-    setEditing(false);
-    setViewer({ ...m, title: editTitle.trim() || null, caption: editCaption.trim() || null });
     toast.success("Memory updated");
-    loadAll();
   }
 
   async function remove(m: Memory) {
     if (!confirm("Delete this memory?")) return;
-    await supabase.storage.from("memories").remove([m.media_path]);
-    await supabase.from("memories").delete().eq("id", m.id);
+    // Optimistic: drop it from the grid instantly, clean up in the background.
+    setMemories((prev) => prev.filter((x) => x.id !== m.id));
     toast.success("Removed");
-    loadAll();
+    const { error } = await supabase.from("memories").delete().eq("id", m.id);
+    if (error) {
+      toast.error("Couldn't delete", { description: error.message });
+      loadAll(true);
+      return;
+    }
+    void supabase.storage.from("memories").remove([m.media_path]);
   }
 
   const filtered = useMemo(() => memories.filter((m) => {

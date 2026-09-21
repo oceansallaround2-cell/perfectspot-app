@@ -48,13 +48,20 @@ interface LoveMsg {
 
 function useHearts() {
   const [hearts, setHearts] = useState<{ id: number; x: number }[]>([]);
-  function burst() {
+  const timers = useRef<number[]>([]);
+
+  // Stable identity: keeps the realtime subscription from re-subscribing on every render.
+  const burst = useCallback(() => {
     const newHearts = Array.from({ length: 8 }, (_, i) => ({ id: Date.now() + i, x: Math.random() * 100 }));
     setHearts((h) => [...h, ...newHearts]);
-    setTimeout(() => {
-      setHearts((h) => h.filter((x) => !newHearts.find((n) => n.id === x.id)));
+    const t = window.setTimeout(() => {
+      setHearts((h) => h.filter((x) => !newHearts.some((n) => n.id === x.id)));
     }, 1800);
-  }
+    timers.current.push(t);
+  }, []);
+
+  useEffect(() => () => { timers.current.forEach(window.clearTimeout); timers.current = []; }, []);
+
   return { hearts, burst };
 }
 
@@ -103,16 +110,29 @@ function LovePage() {
   }, [user.id, burst]);
 
   async function send(text: string) {
-    if (!text.trim()) return;
+    const body = text.trim();
+    if (!body) return;
     setSending(true);
     burst();
-    const { error } = await supabase.from("love_messages").insert({ sender_id: user.id, message: text.trim() });
+    // Optimistic bubble so the note appears the instant you tap.
+    const tempId = `temp-${crypto.randomUUID()}`;
+    setMessages((m) => [{ id: tempId, sender_id: user.id, message: body, created_at: new Date().toISOString() }, ...m]);
+    setCustom("");
+    const { data, error } = await supabase
+      .from("love_messages")
+      .insert({ sender_id: user.id, message: body })
+      .select()
+      .single();
     setSending(false);
     if (error) {
+      setMessages((m) => m.filter((x) => x.id !== tempId));
       toast.error("Couldn't send", { description: error.message });
       return;
     }
-    setCustom("");
+    setMessages((m) => {
+      const withoutTemp = m.filter((x) => x.id !== tempId);
+      return withoutTemp.some((x) => x.id === (data as LoveMsg).id) ? withoutTemp : [data as LoveMsg, ...withoutTemp];
+    });
     toast.success("Sent with love 💜");
     notifyPartner({
       actorId: user.id,
@@ -134,29 +154,38 @@ function LovePage() {
     const text = editText.trim();
     if (!text) return;
     const id = editingId;
+    const previous = messages.find((x) => x.id === id);
     setEditingId(null);
+    // Optimistic edit.
+    setMessages((m) => m.map((x) => (x.id === id ? { ...x, message: text, updated_at: new Date().toISOString() } : x)));
     const { error } = await supabase
       .from("love_messages")
       .update({ message: text, updated_at: new Date().toISOString() })
       .eq("id", id)
       .eq("sender_id", user.id);
-    if (error) toast.error("Couldn't edit", { description: error.message });
-    else {
-      setMessages((m) => m.map((x) => (x.id === id ? { ...x, message: text, updated_at: new Date().toISOString() } : x)));
-      toast.success("Updated");
-    }
+    if (error) {
+      if (previous) setMessages((m) => m.map((x) => (x.id === id ? previous : x)));
+      toast.error("Couldn't edit", { description: error.message });
+    } else toast.success("Updated");
   }
 
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  useEffect(() => () => { if (longPressTimer.current) clearTimeout(longPressTimer.current); }, []);
+
   async function confirmDelete() {
     if (!pendingDelete) return;
     const id = pendingDelete;
+    const previous = messages;
     setPendingDelete(null);
+    // Optimistic delete — the bubble disappears immediately.
+    setMessages((m) => m.filter((x) => x.id !== id));
     const { error } = await supabase.from("love_messages").delete().eq("id", id).eq("sender_id", user.id);
-    if (error) toast.error("Couldn't delete", { description: error.message });
-    else setMessages((m) => m.filter((x) => x.id !== id));
+    if (error) {
+      setMessages(previous);
+      toast.error("Couldn't delete", { description: error.message });
+    }
   }
 
   function startLongPress(id: string) {
