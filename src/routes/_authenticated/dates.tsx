@@ -104,11 +104,18 @@ function DatesPage() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
+    let timer: number | undefined;
     const ch = supabase
       .channel("dates-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "important_dates" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "important_dates" }, () => {
+        if (timer) window.clearTimeout(timer);
+        timer = window.setTimeout(() => load(), 250);
+      })
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      if (timer) window.clearTimeout(timer);
+      supabase.removeChannel(ch);
+    };
   }, [load]);
 
   function openCreate() {
@@ -156,16 +163,26 @@ function DatesPage() {
         .eq("creator_id", user.id);
       setSaving(false);
       if (error) return toast.error("Couldn't update", { description: error.message });
+      // Reflect the edit right away instead of waiting for the refetch.
+      setDates((prev) => prev.map((d) => (d.id === editingId ? ({ ...d, ...payload } as DateRow) : d)));
       toast.success("Date updated");
       setOpen(false);
       return;
     }
 
-    const { error } = await supabase
+    const { data: inserted, error } = await supabase
       .from("important_dates")
-      .insert({ creator_id: user.id, ...payload } as never);
+      .insert({ creator_id: user.id, ...payload } as never)
+      .select()
+      .single();
     setSaving(false);
     if (error) return toast.error("Couldn't save", { description: error.message });
+    if (inserted) {
+      setDates((prev) => {
+        const row = inserted as unknown as DateRow;
+        return prev.some((d) => d.id === row.id) ? prev : [...prev, row];
+      });
+    }
 
     toast.success("Date added 💜");
     notifyPartner({
@@ -181,9 +198,14 @@ function DatesPage() {
   }
 
   async function remove(id: string) {
+    const previous = dates;
+    // Optimistic delete for instant feedback.
+    setDates((prev) => prev.filter((d) => d.id !== id));
     const { error } = await supabase.from("important_dates").delete().eq("id", id).eq("creator_id", user.id);
-    if (error) toast.error("Couldn't delete", { description: error.message });
-    else toast.success("Date removed");
+    if (error) {
+      setDates(previous);
+      toast.error("Couldn't delete", { description: error.message });
+    } else toast.success("Date removed");
   }
 
   const sorted = useMemo(() => {
