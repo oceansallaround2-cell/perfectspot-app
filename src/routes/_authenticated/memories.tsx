@@ -40,10 +40,16 @@ interface Memory {
 
 type FilterMode = "all" | "photo" | "video";
 
-async function signUrl(path: string): Promise<string | null> {
-  const { data, error } = await supabase.storage.from("memories").createSignedUrl(path, 60 * 60 * 6);
-  if (error) return null;
-  return data.signedUrl;
+/** One batched request for every path instead of one round-trip per memory. */
+async function signUrls(paths: string[]): Promise<Record<string, string>> {
+  if (paths.length === 0) return {};
+  const { data, error } = await supabase.storage.from("memories").createSignedUrls(paths, 60 * 60 * 6);
+  if (error || !data) return {};
+  const map: Record<string, string> = {};
+  data.forEach((d) => {
+    if (d.path && d.signedUrl) map[d.path] = d.signedUrl;
+  });
+  return map;
 }
 
 function MemoriesPage({ onLock }: { onLock: () => void }) {
