@@ -154,29 +154,38 @@ function LovePage() {
     const text = editText.trim();
     if (!text) return;
     const id = editingId;
+    const previous = messages.find((x) => x.id === id);
     setEditingId(null);
+    // Optimistic edit.
+    setMessages((m) => m.map((x) => (x.id === id ? { ...x, message: text, updated_at: new Date().toISOString() } : x)));
     const { error } = await supabase
       .from("love_messages")
       .update({ message: text, updated_at: new Date().toISOString() })
       .eq("id", id)
       .eq("sender_id", user.id);
-    if (error) toast.error("Couldn't edit", { description: error.message });
-    else {
-      setMessages((m) => m.map((x) => (x.id === id ? { ...x, message: text, updated_at: new Date().toISOString() } : x)));
-      toast.success("Updated");
-    }
+    if (error) {
+      if (previous) setMessages((m) => m.map((x) => (x.id === id ? previous : x)));
+      toast.error("Couldn't edit", { description: error.message });
+    } else toast.success("Updated");
   }
 
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  useEffect(() => () => { if (longPressTimer.current) clearTimeout(longPressTimer.current); }, []);
+
   async function confirmDelete() {
     if (!pendingDelete) return;
     const id = pendingDelete;
+    const previous = messages;
     setPendingDelete(null);
+    // Optimistic delete — the bubble disappears immediately.
+    setMessages((m) => m.filter((x) => x.id !== id));
     const { error } = await supabase.from("love_messages").delete().eq("id", id).eq("sender_id", user.id);
-    if (error) toast.error("Couldn't delete", { description: error.message });
-    else setMessages((m) => m.filter((x) => x.id !== id));
+    if (error) {
+      setMessages(previous);
+      toast.error("Couldn't delete", { description: error.message });
+    }
   }
 
   function startLongPress(id: string) {
