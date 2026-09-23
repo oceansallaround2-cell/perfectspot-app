@@ -27,6 +27,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { getPartnerId, notifyPartner } from "@/lib/notifications";
 import { compressImage } from "@/lib/media";
+import { signedUrls } from "@/lib/media";
 import {
   SURPRISE_TYPES,
   eventPhase,
@@ -54,27 +55,48 @@ function PlannerPage() {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<SurpriseEvent | null>(null);
 
-  const load = useCallback(async () => {
+  const refreshTimerRef = useRef<number | null>(null);
+  const load = useCallback(async (silent = false) => {
     const { data } = await supabase.from("surprise_events").select("*").order("start_at", { ascending: true });
     setEvents((data as SurpriseEvent[]) ?? []);
-    setLoading(false);
+    if (!silent) setLoading(false);
   }, []);
 
   useEffect(() => {
     load();
     const channel = supabase
       .channel("surprise-events-feed")
-      .on("postgres_changes", { event: "*", schema: "public", table: "surprise_events" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "surprise_events" }, () => {
+        if (refreshTimerRef.current) window.clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = window.setTimeout(() => void load(true), 250);
+      })
       .subscribe();
     return () => {
+      if (refreshTimerRef.current) window.clearTimeout(refreshTimerRef.current);
       supabase.removeChannel(channel);
     };
   }, [load]);
 
-  const mine = events.filter((e) => e.creator_id === user.id);
-  const upcoming = mine.filter((e) => eventPhase(e) === "upcoming");
-  const live = events.filter((e) => eventPhase(e) === "live");
-  const past = events.filter((e) => eventPhase(e) === "past");
+  const { upcoming, live, past } = useMemo(() => {
+    const mine = events.filter((e) => e.creator_id === user.id);
+    return {
+      upcoming: mine.filter((e) => eventPhase(e) === "upcoming"),
+      live: events.filter((e) => eventPhase(e) === "live"),
+      past: events.filter((e) => eventPhase(e) === "past"),
+    };
+  }, [events, user.id]);
+
+  const removeEvent = useCallback(async (event: SurpriseEvent) => {
+    const previous = events;
+    setEvents((current) => current.filter((item) => item.id !== event.id));
+    const { error } = await supabase.from("surprise_events").delete().eq("id", event.id).eq("creator_id", user.id);
+    if (error) {
+      setEvents(previous);
+      toast.error("Couldn't delete this event");
+      return;
+    }
+    toast.success("Event deleted");
+  }, [events, user.id]);
 
   return (
     <div className="space-y-6">
@@ -103,14 +125,14 @@ function PlannerPage() {
                 userId={user.id}
                 onOpen={() => navigate({ to: "/surprise/$eventId", params: { eventId: e.id }, search: { step: undefined } })}
                 onEdit={() => setEditing(e)}
-                onChanged={load}
+                onDelete={removeEvent}
               />
             ))}
           </Section>
 
           <Section title="Upcoming (only you can see these)" empty="No secret plans yet.">
             {upcoming.map((e) => (
-              <EventCard key={e.id} event={e} userId={user.id} onEdit={() => setEditing(e)} onChanged={load} />
+              <EventCard key={e.id} event={e} userId={user.id} onEdit={() => setEditing(e)} onDelete={removeEvent} />
             ))}
           </Section>
 
@@ -122,7 +144,7 @@ function PlannerPage() {
                 userId={user.id}
                 onOpen={() => navigate({ to: "/surprise/$eventId", params: { eventId: e.id }, search: { step: undefined } })}
                 onEdit={e.creator_id === user.id ? () => setEditing(e) : undefined}
-                onChanged={load}
+                onDelete={removeEvent}
               />
             ))}
           </Section>
@@ -172,25 +194,16 @@ function EventCard({
   userId,
   onOpen,
   onEdit,
-  onChanged,
+  onDelete,
 }: {
   event: SurpriseEvent;
   userId: string;
   onOpen?: () => void;
   onEdit?: () => void;
-  onChanged: () => void;
+  onDelete: (event: SurpriseEvent) => Promise<void>;
 }) {
   const meta = surpriseMeta(event.event_type);
   const isCreator = event.creator_id === userId;
-
-  async function remove() {
-    const { error } = await supabase.from("surprise_events").delete().eq("id", event.id).eq("creator_id", userId);
-    if (error) toast.error("Couldn't delete this event");
-    else {
-      toast.success("Event deleted");
-      onChanged();
-    }
-  }
 
   return (
     <article className="animate-fade-up glass-card p-4">
@@ -219,7 +232,7 @@ function EventCard({
           <ConfirmDialog
             title="Delete this surprise?"
             description="The music, voice note, photos and messages are removed for good."
-            onConfirm={remove}
+            onConfirm={() => onDelete(event)}
             trigger={
               <Button size="sm" variant="ghost" className="rounded-full text-destructive">
                 <Trash2 className="h-3.5 w-3.5" />
@@ -370,10 +383,9 @@ function PrepareDialog({ event, userId, onClose }: { event: SurpriseEvent; userI
     setNotes((ms as SurpriseNote[]) ?? []);
     setMusicUrl(await surpriseUrl(next.music_path));
     setVoiceUrl(await surpriseUrl(next.voice_path));
-    const entries = await Promise.all(
-      ((ph as SurprisePhoto[]) ?? []).map(async (p) => [p.id, (await surpriseUrl(p.storage_path)) ?? ""] as const),
-    );
-    setPhotoUrls(Object.fromEntries(entries));
+    const photoList = (ph as SurprisePhoto[]) ?? [];
+    const byPath = await signedUrls("surprises", photoList.map((p) => p.storage_path));
+    setPhotoUrls(Object.fromEntries(photoList.map((p) => [p.id, byPath[p.storage_path] ?? ""])));
   }, [event]);
 
   useEffect(() => {
@@ -478,9 +490,20 @@ function PrepareDialog({ event, userId, onClose }: { event: SurpriseEvent; userI
   }
 
   async function deletePhoto(p: SurprisePhoto) {
-    await removeSurpriseFile(p.storage_path);
-    await supabase.from("surprise_photos").delete().eq("id", p.id);
-    refresh();
+    const previous = photos;
+    setPhotos((current) => current.filter((item) => item.id !== p.id));
+    setPhotoUrls((current) => {
+      const next = { ...current };
+      delete next[p.id];
+      return next;
+    });
+    const { error } = await supabase.from("surprise_photos").delete().eq("id", p.id);
+    if (error) {
+      setPhotos(previous);
+      toast.error("Couldn't delete this photo");
+      return;
+    }
+    void removeSurpriseFile(p.storage_path);
   }
 
   async function movePhoto(index: number, dir: -1 | 1) {
@@ -505,8 +528,13 @@ function PrepareDialog({ event, userId, onClose }: { event: SurpriseEvent; userI
   }
 
   async function deleteNote(id: string) {
-    await supabase.from("surprise_messages").delete().eq("id", id);
-    refresh();
+    const previous = notes;
+    setNotes((current) => current.filter((note) => note.id !== id));
+    const { error } = await supabase.from("surprise_messages").delete().eq("id", id);
+    if (error) {
+      setNotes(previous);
+      toast.error("Couldn't delete this message");
+    }
   }
 
   async function announce() {
