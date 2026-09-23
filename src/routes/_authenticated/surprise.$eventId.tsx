@@ -344,13 +344,14 @@ function CandleStage({ onBlown }: { onBlown: () => void }) {
   const [micError, setMicError] = useState<string | null>(null);
   const doneRef = useRef(false);
   const cleanupRef = useRef<() => void>(() => {});
+  const transitionTimerRef = useRef<number | null>(null);
 
   const extinguish = useCallback(() => {
     if (doneRef.current) return;
     doneRef.current = true;
     setLit(false);
     cleanupRef.current();
-    window.setTimeout(onBlown, 1200);
+    transitionTimerRef.current = window.setTimeout(onBlown, 900);
   }, [onBlown]);
 
   useEffect(() => {
@@ -397,7 +398,10 @@ function CandleStage({ onBlown }: { onBlown: () => void }) {
       stream?.getTracks().forEach((t) => t.stop());
       ctx?.close().catch(() => {});
     };
-    return () => cleanupRef.current();
+    return () => {
+      cleanupRef.current();
+      if (transitionTimerRef.current) window.clearTimeout(transitionTimerRef.current);
+    };
   }, [extinguish]);
 
   return (
@@ -518,7 +522,7 @@ function AlbumStage({
               <img
                 src={slide.url}
                 alt="A memory"
-                loading="eager"
+                loading={i === 0 ? "eager" : "lazy"}
                 decoding="async"
                 onLoad={() => setLoaded((m) => ({ ...m, [slide.id]: true }))}
                 className={`h-[52vh] w-full object-cover transition-opacity duration-700 ${loaded[slide.id] ? "opacity-100" : "absolute inset-0 opacity-0"}`}

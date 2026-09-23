@@ -8,6 +8,7 @@ import { accountByEmail } from "@/lib/accounts";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { GlobalMusicButton, GlobalMusicProvider } from "@/components/GlobalMusic";
 import { enablePush, pushSupported } from "@/lib/notifications";
+import appIcon from "@/assets/perfect-spot-icon.png.asset.json";
 
 
 /** Premium tap ripple on every button in the app. */
@@ -141,9 +142,14 @@ function AuthedLayout() {
       <header className="sticky top-0 z-40 border-b border-border/40 backdrop-blur-xl" style={{ background: "color-mix(in oklab, var(--background) 75%, transparent)" }}>
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
           <Link to="/dashboard" className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full" style={{ background: "var(--gradient-primary)" }}>
-              <Heart className="h-4 w-4 text-primary-foreground" fill="currentColor" />
-            </div>
+            <img
+              src={appIcon.url}
+              alt=""
+              width={36}
+              height={36}
+              decoding="async"
+              className="h-9 w-9 rounded-xl object-cover shadow-sm"
+            />
             <div className="leading-tight">
               <div className="font-serif text-lg font-semibold">Perfect Spot</div>
               {profile && <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Hi {profile.display_name} 💜</div>}

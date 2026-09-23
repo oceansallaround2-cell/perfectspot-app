@@ -20,6 +20,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { signedUrls } from "@/lib/media";
 
 
 export const Route = createFileRoute("/_authenticated/watch")({
@@ -220,6 +221,8 @@ function RoomView({ room, onLeave, setRoom }: { room: Room; onLeave: () => void;
   const [messages, setMessages] = useState<Message[]>([]);
   const [copied, setCopied] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const noticeTimerRef = useRef<number | null>(null);
+  const copyTimerRef = useRef<number | null>(null);
 
   // Load members + messages
   useEffect(() => {
@@ -257,7 +260,8 @@ function RoomView({ room, onLeave, setRoom }: { room: Room; onLeave: () => void;
         { event: "DELETE", schema: "public", table: "watch_rooms", filter: `id=eq.${room.id}` },
         () => {
           setNotice("This room was closed by the creator.");
-          setTimeout(() => onLeave(), 1500);
+          if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
+          noticeTimerRef.current = window.setTimeout(() => onLeave(), 1500);
         },
       )
       .on(
@@ -279,7 +283,10 @@ function RoomView({ room, onLeave, setRoom }: { room: Room; onLeave: () => void;
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "watch_messages", filter: `room_id=eq.${room.id}` },
-        (payload) => setMessages((prev) => [...prev, payload.new as Message]),
+        (payload) => setMessages((prev) => {
+          const incoming = payload.new as Message;
+          return prev.some((message) => message.id === incoming.id) ? prev : [...prev, incoming];
+        }),
       )
       .on(
         "postgres_changes",
@@ -292,6 +299,8 @@ function RoomView({ room, onLeave, setRoom }: { room: Room; onLeave: () => void;
       )
       .subscribe();
     return () => {
+      if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
+      if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
       supabase.removeChannel(channel);
     };
   }, [room.id, onLeave, setRoom]);
@@ -312,7 +321,8 @@ function RoomView({ room, onLeave, setRoom }: { room: Room; onLeave: () => void;
     try {
       await navigator.clipboard.writeText(room.code);
       setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = window.setTimeout(() => setCopied(false), 1500);
     } catch {
       toast.error("Could not copy code");
     }
@@ -388,7 +398,7 @@ function RoomView({ room, onLeave, setRoom }: { room: Room; onLeave: () => void;
 
       <VoicePanel roomId={room.id} userId={user.id} />
 
-      <ChatPanel roomId={room.id} userId={user.id} messages={messages} members={members} />
+      <ChatPanel roomId={room.id} userId={user.id} messages={messages} members={members} setMessages={setMessages} />
     </div>
   );
 }
@@ -813,11 +823,13 @@ function ChatPanel({
   userId,
   messages,
   members,
+  setMessages,
 }: {
   roomId: string;
   userId: string;
   messages: Message[];
   members: Member[];
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
 }) {
   const [text, setText] = useState("");
   const [recording, setRecording] = useState(false);
@@ -832,16 +844,18 @@ function ChatPanel({
   useEffect(() => {
     const missing = messages.filter((m) => m.kind === "voice" && m.audio_path && !audioUrls[m.id]);
     if (missing.length === 0) return;
-    (async () => {
-      const entries = await Promise.all(
-        missing.map(async (m) => {
-          const { data } = await supabase.storage.from("voice-notes").createSignedUrl(m.audio_path as string, 60 * 60 * 6);
-          return [m.id, data?.signedUrl ?? ""] as const;
-        }),
-      );
+    const paths = missing.flatMap((message) => message.audio_path ? [message.audio_path] : []);
+    void signedUrls("voice-notes", paths).then((byPath) => {
+      const entries = missing.map((message) => [message.id, message.audio_path ? byPath[message.audio_path] ?? "" : ""] as const);
       setAudioUrls((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
-    })();
+    });
   }, [messages, audioUrls]);
+
+  useEffect(() => () => {
+    if (preview) URL.revokeObjectURL(preview.url);
+    const recorder = recorderRef.current;
+    if (recorder?.state === "recording") recorder.stop();
+  }, [preview]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -857,11 +871,13 @@ function ChatPanel({
     const message = text.trim();
     if (!message) return;
     setText("");
-    const { error } = await supabase.from("watch_messages").insert({ room_id: roomId, sender_id: userId, message, kind: "text" });
-    if (error) {
+    const { data, error } = await supabase.from("watch_messages").insert({ room_id: roomId, sender_id: userId, message, kind: "text" }).select().single();
+    if (error || !data) {
       toast.error("Failed to send");
       setText(message);
+      return;
     }
+    setMessages((current) => current.some((item) => item.id === data.id) ? current : [...current, data as Message]);
   };
 
   const startRecording = async () => {
@@ -927,17 +943,20 @@ function ChatPanel({
   };
 
   const removeMessage = async (m: Message) => {
+    const previous = messages;
+    setMessages((current) => current.filter((message) => message.id !== m.id));
     const { error } = await supabase
       .from("watch_messages")
       .delete()
       .eq("id", m.id)
       .eq("sender_id", userId);
     if (error) {
+      setMessages(previous);
       toast.error("Couldn't delete", { description: error.message });
       return;
     }
     if (m.audio_path) {
-      await supabase.storage.from("voice-notes").remove([m.audio_path]);
+      void supabase.storage.from("voice-notes").remove([m.audio_path]);
     }
 
   };

@@ -113,7 +113,7 @@
 
   h1, h2, h3, h4, .font-serif {
     font-family: var(--font-serif);
-    letter-spacing: -0.01em;
+    letter-spacing: 0;
   }
 }
 
@@ -191,7 +191,7 @@
   to { transform: scale(16); opacity: 0; }
 }
 
-.animate-fade-up { animation: fade-up 0.5s ease both; }
+.animate-fade-up { animation: fade-up 0.32s cubic-bezier(0.2, 0.8, 0.3, 1) both; }
 .animate-soft-pulse { animation: soft-pulse 2.4s ease-in-out infinite; }
 .animate-float-heart { animation: float-heart 1.6s ease-out forwards; }
 
@@ -213,6 +213,20 @@ button, a[role="button"] {
   transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.3, 1), box-shadow 0.25s ease, filter 0.25s ease;
 }
 button:not(:disabled):active { transform: scale(0.97); }
+
+@media (max-width: 640px) {
+  .glass-card { backdrop-filter: blur(14px) saturate(125%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .ps-ripple { display: none; }
+}
 
     
 

@@ -47,14 +47,20 @@ function readPref<T>(key: string, fallback: T): T {
 
 /** Smoothly ramp an audio element's volume. */
 function fade(audio: HTMLAudioElement, to: number, ms = 500) {
+  let frame = 0;
+  let cancelled = false;
   const from = audio.volume;
   const start = performance.now();
   const step = (t: number) => {
     const k = Math.min(1, (t - start) / ms);
     audio.volume = Math.max(0, Math.min(1, from + (to - from) * k));
-    if (k < 1) requestAnimationFrame(step);
+    if (k < 1 && !cancelled) frame = requestAnimationFrame(step);
   };
-  requestAnimationFrame(step);
+  frame = requestAnimationFrame(step);
+  return () => {
+    cancelled = true;
+    cancelAnimationFrame(frame);
+  };
 }
 
 /**
@@ -64,6 +70,7 @@ function fade(audio: HTMLAudioElement, to: number, ms = 500) {
 export function GlobalMusicProvider({ children }: { children: React.ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const duckedRef = useRef(false);
+  const cancelFadeRef = useRef<(() => void) | null>(null);
   const [track, setTrack] = useState<Track | null>(null);
   const [url, setUrl] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -117,7 +124,8 @@ export function GlobalMusicProvider({ children }: { children: React.ReactNode })
         .play()
         .then(() => {
           setPlaying(true);
-          fade(audio, volume, 900);
+          cancelFadeRef.current?.();
+          cancelFadeRef.current = fade(audio, volume, 500);
         })
         .catch(() => setPlaying(false));
 
@@ -126,6 +134,7 @@ export function GlobalMusicProvider({ children }: { children: React.ReactNode })
     const onFirstTouch = () => {
       if (audio.paused) tryPlay();
       window.removeEventListener("pointerdown", onFirstTouch);
+      cancelFadeRef.current?.();
     };
     window.addEventListener("pointerdown", onFirstTouch);
 
@@ -170,7 +179,10 @@ export function GlobalMusicProvider({ children }: { children: React.ReactNode })
   const duck = useCallback(() => {
     const audio = audioRef.current;
     duckedRef.current = true;
-    if (audio && !audio.paused) fade(audio, 0, 400);
+    if (audio && !audio.paused) {
+      cancelFadeRef.current?.();
+      cancelFadeRef.current = fade(audio, 0, 250);
+    }
   }, []);
 
   const unduck = useCallback(() => {
@@ -178,7 +190,8 @@ export function GlobalMusicProvider({ children }: { children: React.ReactNode })
     duckedRef.current = false;
     if (!audio) return;
     if (audio.paused) audio.play().catch(() => {});
-    fade(audio, volume, 700);
+    cancelFadeRef.current?.();
+    cancelFadeRef.current = fade(audio, volume, 400);
   }, [volume]);
 
   const api = useMemo<MusicApi>(
