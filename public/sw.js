@@ -1,7 +1,72 @@
-/* Perfect Spot — push notification worker (messaging only, no offline caching). */
+/* Perfect Spot — app-shell cache + push notifications. No offline data caching. */
 
-self.addEventListener("install", () => self.skipWaiting());
-self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
+const SHELL_CACHE = "ps-shell-v1";
+const SHELL_ASSETS = ["/manifest.webmanifest", "/favicon.png", "/icon-192.png", "/icon-512.png", "/apple-touch-icon.png"];
+const host = self.location.hostname;
+const IS_PREVIEW =
+  host === "localhost" ||
+  host.startsWith("id-preview--") ||
+  host.startsWith("preview--") ||
+  /(^|\.)lovableproject(-dev)?\.com$/.test(host) ||
+  /(^|\.)beta\.lovable\.dev$/.test(host);
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    (IS_PREVIEW ? Promise.resolve() : caches.open(SHELL_CACHE).then((c) => c.addAll(SHELL_ASSETS)).catch(() => {}))
+      .then(() => self.skipWaiting()),
+  );
+});
+
+self.addEventListener("activate", (event) =>
+  event.waitUntil(
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith("ps-shell-") && (IS_PREVIEW || k !== SHELL_CACHE)).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim()),
+  ),
+);
+
+self.addEventListener("fetch", (event) => {
+  if (IS_PREVIEW) return;
+  const req = event.request;
+  if (req.method !== "GET") return;
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith("/~oauth") || url.pathname.startsWith("/api/") || url.pathname.startsWith("/_serverFn")) return;
+
+  // Pages: always network first, fall back to cached shell if the network fails.
+  if (req.mode === "navigate") {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          if (res.ok) {
+            const copy = res.clone();
+            caches.open(SHELL_CACHE).then((c) => c.put("/", copy));
+          }
+          return res;
+        })
+        .catch(() => caches.match("/").then((r) => r || Response.error())),
+    );
+    return;
+  }
+
+  // Hashed build assets + static icons: cache first.
+  if (url.pathname.startsWith("/assets/") || SHELL_ASSETS.includes(url.pathname)) {
+    event.respondWith(
+      caches.match(req).then(
+        (hit) =>
+          hit ||
+          fetch(req).then((res) => {
+            if (res.ok) {
+              const copy = res.clone();
+              caches.open(SHELL_CACHE).then((c) => c.put(req, copy));
+            }
+            return res;
+          }),
+      ),
+    );
+  }
+});
 
 self.addEventListener("push", (event) => {
   let payload = { title: "Perfect Spot", body: "Something new 💜", link: "/dashboard" };
